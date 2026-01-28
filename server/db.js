@@ -7,6 +7,6 @@ const __dirname = path.dirname(__filename);
 
 export const sequelize = new Sequelize({
     dialect: 'sqlite',
-    storage: path.join(__dirname, 'database.sqlite'),
+    storage: process.env.DB_STORAGE || path.join(__dirname, 'database.sqlite'),
     logging: false // Toggle to true to see SQL queries
 });

@@ -9,12 +9,13 @@ services:
     ports:
       - "36006:3000"
     volumes:
-      # Persist Database
-      - ./server/database.sqlite:/app/server/database.sqlite
+      # Persist Database in a dedicated folder
+      - ./data:/app/data
       # Allow editing sync config without rebuild
       - ./server/sync-sheets.js:/app/server/sync-sheets.js
     environment:
       - PORT=3000
+      - DB_STORAGE=/app/data/database.sqlite
     restart: unless-stopped
 
   frontend:
@@ -23,7 +24,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "69321:80"
+      - "5932:80"
     depends_on:
       - backend
     restart: unless-stopped
