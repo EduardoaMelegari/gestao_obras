@@ -91,6 +91,12 @@ const Dashboard = () => {
         return <div className="error-screen">Erro ao carregar dados. Verifique a conexão com o servidor.</div>;
     }
 
+    const filteredGenerateOS = getFilteredData(projectData.generate_os);
+    const filteredToDeliver = getFilteredData(projectData.to_deliver);
+    const filteredPriorities = getFilteredData(projectData.priority);
+    const filteredDelivered = getFilteredData(projectData.delivered);
+    const filteredInExecution = getFilteredData(projectData.in_execution);
+
     return (
         <div className="dashboard-container">
             <div className="top-bar">
@@ -145,43 +151,43 @@ const Dashboard = () => {
                 <div className="column-grid">
                     {/* Column 0: Generate O.S. (New) */}
                     <div className="dashboard-column">
-                        <KPICard data={kpiData.generateOS} />
+                        <KPICard data={{ ...kpiData.generateOS, count: filteredGenerateOS.length }} />
                         <ProjectColumn
                             title="CLIENTE"
                             secondTitle="DIAS"
-                            data={getFilteredData(projectData.generate_os)}
+                            data={filteredGenerateOS}
                             type="with-days"
                         />
                     </div>
 
                     {/* Column 1: To Deliver (Swapped) */}
                     <div className="dashboard-column">
-                        <KPICard data={kpiData.toDeliver} />
+                        <KPICard data={{ ...kpiData.toDeliver, count: filteredToDeliver.length }} />
                         <ProjectColumn
                             title="CLIENTE"
                             secondTitle="DIAS"
-                            data={getFilteredData(projectData.to_deliver)}
+                            data={filteredToDeliver}
                             type="with-days"
                         />
                     </div>
 
                     {/* Column 2: Priority (Swapped) */}
                     <div className="dashboard-column">
-                        <KPICard data={kpiData.priorities} />
+                        <KPICard data={{ ...kpiData.priorities, count: filteredPriorities.length }} />
                         <ProjectColumn
                             title="CLIENTE"
                             secondTitle="DIAS"
-                            data={getFilteredData(projectData.priority)}
+                            data={filteredPriorities}
                             type="with-days"
                         />
                     </div>
 
                     {/* Column 3: Delivered */}
                     <div className="dashboard-column">
-                        <KPICard data={kpiData.delivered} />
+                        <KPICard data={{ ...kpiData.delivered, count: filteredDelivered.length }} />
                         <ProjectColumn
                             title="CLIENTES SEM EQUIPE"
-                            data={getFilteredData(projectData.delivered)}
+                            data={filteredDelivered}
                             type="simple"
                             emptyMessage="SEM OBRAS A DESIGNAR"
                         />
@@ -189,11 +195,11 @@ const Dashboard = () => {
 
                     {/* Column 4: In Execution */}
                     <div className="dashboard-column">
-                        <KPICard data={kpiData.inExecution} />
+                        <KPICard data={{ ...kpiData.inExecution, count: filteredInExecution.length }} />
                         <ProjectColumn
                             title="CLIENTE"
                             secondTitle="EQUIPE INSTALAÇÃO"
-                            data={getFilteredData(projectData.in_execution)}
+                            data={filteredInExecution}
                             type="with-team"
                         />
                     </div>
