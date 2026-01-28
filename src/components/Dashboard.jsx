@@ -43,10 +43,10 @@ const Dashboard = () => {
     React.useEffect(() => {
         loadData(selectedCity); // Initial (shows loading)
 
-        // Refresh UI every 1 minute to catch new data (Silent)
+        // Refresh UI every 10 seconds to catch new data (Silent)
         const intervalId = setInterval(() => {
             loadData(selectedCity, true);
-        }, 60 * 1000);
+        }, 10 * 1000);
 
         return () => clearInterval(intervalId); // Cleanup on unmount
     }, [selectedCity]); // Re-run if city changes (loadData depends on it)
