@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { sequelize } from './db.js';
+import { sequelize, Op } from './db.js';
 import Project from './models/Project.js';
 import syncSheets from './sync-sheets.js';
 
@@ -33,7 +33,6 @@ app.get('/api/dashboard', async (req, res) => {
         const inExecution = await Project.findAll({ ...queryOptions, where: { ...queryOptions.where, status: 'IN_EXECUTION' } });
 
         // Get list of available cities for the filter dropdown
-        // (In a real app, maybe do a distinct query, but here we can just hardcode or query)
         const allCities = await Project.findAll({
             attributes: [[sequelize.fn('DISTINCT', sequelize.col('city')), 'city']]
         });
@@ -44,7 +43,7 @@ app.get('/api/dashboard', async (req, res) => {
             generateOS: {
                 title: "GERAR O.S.",
                 count: generateOS.length,
-                color: "#FFA500", // Using same orange as requested, or maybe a different shade? Keeping consistent.
+                color: "#FFA500",
                 statusId: "generate_os"
             },
             priorities: {
@@ -73,8 +72,31 @@ app.get('/api/dashboard', async (req, res) => {
             }
         };
 
+        // Vistoria Data Queries
+        const vistoriaSolicitar = await Project.findAll({
+            ...queryOptions,
+            where: {
+                ...queryOptions.where,
+                status: 'COMPLETED',
+                vistoria_status: 'Não Solicitado'
+            }
+        });
+
+        // Fetch all Solicitadas then split by days (to avoid DB type issues)
+        const allSolicitadas = await Project.findAll({
+            ...queryOptions,
+            where: {
+                ...queryOptions.where,
+                vistoria_status: 'Solicitado',
+                status: 'COMPLETED'
+            }
+        });
+
+        const vistoriaSolicitadas = allSolicitadas.filter(p => p.days <= 7);
+        const vistoriaAtrasadas = allSolicitadas.filter(p => p.days > 7);
+
         const data = {
-            cities, // Send available cities to frontend
+            cities,
             kpi,
             projects: {
                 generate_os: generateOS,
@@ -82,6 +104,11 @@ app.get('/api/dashboard', async (req, res) => {
                 to_deliver: toDeliver,
                 delivered: delivered,
                 in_execution: inExecution
+            },
+            vistoria: {
+                solicitar: vistoriaSolicitar,
+                solicitadas: vistoriaSolicitadas,
+                atrasadas: vistoriaAtrasadas
             }
         };
 
@@ -105,7 +132,7 @@ app.post('/api/sync', async (req, res) => {
 // Start Server
 async function start() {
     try {
-        await sequelize.sync(); // Creates tables if they don't exist
+        await sequelize.sync({ alter: true }); // Creates tables if they don't exist and updates schema
         console.log('Database synced');
 
         // Initial Data Load
