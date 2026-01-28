@@ -5,7 +5,7 @@ import Project from './models/Project.js';
 import syncSheets from './sync-sheets.js';
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 36006;
 
 app.use(cors());
 app.use(express.json());
