@@ -17,8 +17,8 @@ const Dashboard = () => {
     // Days Filter State
     const [daysFilter, setDaysFilter] = React.useState('');
 
-    const loadData = React.useCallback(async (cityToFetch) => {
-        setLoading(true);
+    const loadData = React.useCallback(async (cityToFetch, isBackground = false) => {
+        if (!isBackground) setLoading(true);
         try {
             const { fetchDashboardData } = await import('../services/data');
             const result = await fetchDashboardData(cityToFetch);
@@ -35,17 +35,17 @@ const Dashboard = () => {
         } catch (err) {
             console.error(err);
         } finally {
-            setLoading(false);
+            if (!isBackground) setLoading(false);
         }
     }, [selectedCity]);
 
     // Initial Load & Auto-Refresh
     React.useEffect(() => {
-        loadData(selectedCity);
+        loadData(selectedCity); // Initial (shows loading)
 
-        // Refresh UI every 10 seconds to catch new data
+        // Refresh UI every 10 seconds to catch new data (Silent)
         const intervalId = setInterval(() => {
-            loadData(selectedCity);
+            loadData(selectedCity, true);
         }, 10 * 1000);
 
         return () => clearInterval(intervalId); // Cleanup on unmount
