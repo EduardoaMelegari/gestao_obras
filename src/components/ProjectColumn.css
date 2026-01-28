@@ -1,0 +1,110 @@
+.project-column-container {
+    background-color: var(--color-accent);
+    /* Orange background for the list area essentially */
+    display: flex;
+    flex-direction: column;
+    /* The screenshot shows white/blue headers, then orange list items */
+    /* Wait, the container background might be transparent or black, but the items span full width */
+    height: 100%;
+}
+
+.column-header {
+    background-color: #e8eaed;
+    /* Light grey/blue header */
+    color: #000;
+    font-weight: 700;
+    font-size: 0.8rem;
+    padding: 8px 12px;
+    display: flex;
+    justify-content: space-between;
+    text-transform: uppercase;
+    border-bottom: 2px solid #000;
+    /* Separator */
+}
+
+.column-header.two-cols {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    /* Adjust ratio as needed */
+    gap: 10px;
+}
+
+.main-cell {
+    /* Existing styles if any, or just keeping structure */
+    display: flex;
+    flex-direction: column;
+    /* Stack name and city */
+    justify-content: center;
+    line-height: 1.2;
+}
+
+.city-badge {
+    font-size: 0.75rem;
+    color: #1a1a1a;
+    /* Dark grey/Black for contrast on Orange */
+    font-weight: bold;
+    margin-top: 2px;
+    text-transform: uppercase;
+}
+
+.list-row {
+    background-color: var(--color-accent);
+    /* Orange */
+    padding: 8px 12px;
+    color: black;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 1px;
+    /* Tiny gap */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.list-row.with-days,
+.list-row.with-team {
+    /* For rows with multiple columns */
+}
+
+/* Specific grid for multi-column rows to match header */
+.list-row.with-team,
+.list-row.with-days {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 10px;
+}
+
+.list-row:nth-child(even) {
+    /* Maybe slightly different shade if alternating? Screenshot looks solid. */
+}
+
+.cell {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.value-cell {
+    text-align: right;
+}
+
+.list-footer {
+    margin-top: auto;
+    /* Push to bottom */
+    padding: 8px 12px;
+    background-color: var(--color-accent);
+    color: black;
+    font-size: 0.75rem;
+    display: flex;
+    justify-content: flex-end;
+    /* Right aligned */
+    gap: 15px;
+    align-items: center;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.pagination-arrows span {
+    margin-left: 8px;
+    cursor: pointer;
+    font-weight: bold;
+}

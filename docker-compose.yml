@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  backend:
+    container_name: dashboard-backend
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    ports:
+      - "36006:3000"
+    volumes:
+      # Persist Database
+      - ./server/database.sqlite:/app/server/database.sqlite
+      # Allow editing sync config without rebuild
+      - ./server/sync-sheets.js:/app/server/sync-sheets.js
+    environment:
+      - PORT=3000
+    restart: unless-stopped
+
+  frontend:
+    container_name: dashboard-frontend
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "69321:80"
+    depends_on:
+      - backend
+    restart: unless-stopped

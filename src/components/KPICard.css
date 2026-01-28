@@ -1,0 +1,31 @@
+.kpi-card {
+    background-color: var(--color-accent);
+    /* Orange */
+    padding: 15px;
+    text-align: center;
+    /* In screenshot, cards seem to have rounded corners or just square blocks */
+    border-radius: 4px;
+    color: #333;
+    /* Dark text on orange */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.kpi-title {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    color: #444;
+    margin-bottom: 5px;
+    letter-spacing: 0.5px;
+}
+
+.kpi-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #000;
+    line-height: 1;
+}
