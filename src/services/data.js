@@ -1,4 +1,5 @@
-const API_URL = 'http://localhost:36006/api/dashboard';
+// Use relative path so it works with proxy (Dev: Vite Proxy, Prod: Nginx Proxy)
+const API_URL = '/api/dashboard';
 
 export async function fetchDashboardData(city) {
     try {
