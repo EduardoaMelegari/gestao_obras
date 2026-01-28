@@ -39,10 +39,17 @@ const Dashboard = () => {
         }
     }, [selectedCity]);
 
-    // Initial Load
+    // Initial Load & Auto-Refresh
     React.useEffect(() => {
         loadData(selectedCity);
-    }, []); // Run once on mount
+
+        // Refresh UI every 10 seconds to catch new data
+        const intervalId = setInterval(() => {
+            loadData(selectedCity);
+        }, 10 * 1000);
+
+        return () => clearInterval(intervalId); // Cleanup on unmount
+    }, [selectedCity]); // Re-run if city changes (loadData depends on it)
 
     // Handle City Change
     const handleCityChange = (e) => {
