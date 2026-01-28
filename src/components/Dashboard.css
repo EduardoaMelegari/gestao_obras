@@ -8,12 +8,12 @@
 
 .dashboard-content {
     flex: 1;
-    padding: 20px 0 0 0;
-    /* Keep top padding, remove specific side padding */
+    padding: 20px;
+    max-width: 1920px;
+    margin: 0 auto;
     width: 100%;
-    max-width: 100%;
-    /* Ensure full width */
-    margin: 0;
+    /* Only container background is black in the screenshot, or it's a full black section */
+    /* Looking at screenshot, the main dashboard area has a black header/container */
 }
 
 .column-grid {

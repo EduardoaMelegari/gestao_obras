@@ -19,7 +19,20 @@ const Project = sequelize.define('Project', {
         defaultValue: ''
     },
     external_id: {
-        type: DataTypes.STRING, /* ID from Sheet if available, or generated */
+        type: DataTypes.STRING,
+    },
+    // Vistoria Fields
+    vistoria_status: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    vistoria_date: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    vistoria_deadline: {
+        type: DataTypes.STRING,
+        allowNull: true
     },
     city: {
         type: DataTypes.STRING,

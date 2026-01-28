@@ -1,0 +1,99 @@
+.sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: 100vh;
+    background-color: var(--color-card-bg);
+    color: var(--color-text-primary);
+    transition: width 0.3s ease;
+    z-index: 1000;
+    overflow: hidden;
+    border-right: 1px solid var(--color-text-secondary);
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar.collapsed {
+    width: 50px;
+}
+
+.sidebar.expanded {
+    width: 250px;
+}
+
+.sidebar-header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 15px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar.expanded .sidebar-header {
+    justify-content: flex-end;
+    padding-right: 20px;
+}
+
+.toggle-btn {
+    background: none;
+    border: none;
+    color: var(--color-text-primary);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.toggle-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-content {
+    display: flex;
+    flex-direction: column;
+    padding-top: 10px;
+    gap: 5px;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 0;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.sidebar.expanded .nav-item {
+    justify-content: flex-start;
+    padding-left: 20px;
+}
+
+.nav-item:hover {
+    background-color: rgba(255, 140, 0, 0.1);
+}
+
+.nav-item.active {
+    background-color: var(--color-accent);
+    color: #fff;
+    border-left: 3px solid #fff;
+}
+
+.icon {
+    font-size: 1.3rem;
+    min-width: 50px;
+    display: flex;
+    justify-content: center;
+}
+
+.label {
+    margin-left: 10px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    opacity: 1;
+    /* Always render, handled by overflow hidden */
+}
