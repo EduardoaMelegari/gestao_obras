@@ -97,6 +97,19 @@ function determineStatus(row) {
     const equipe = (row['EQUIPE INSTALAÇÃO'] || '').trim();
     const dataPagamento = (row['DATA PAGAMENTO'] || '').trim();
 
+    // 0. GENERATE O.S. (User Request)
+    // - O.S Emitida == Nulo/Empty OR "NÃO"
+    // - Status Instalação != Finalizado
+    // - Data Pagamento != Nulo
+    const isGenerateOSCandidate =
+        (osEmitida.length === 0 || osEmitida === 'NÃO' || osEmitida === 'NAO') &&
+        statusInstalacao !== 'FINALIZADO' &&
+        dataPagamento.length > 0;
+
+    if (isGenerateOSCandidate) {
+        return 'GENERATE_OS';
+    }
+
     // 1. PRIORITY LOGIC
     // - Prioridade != Nulo
     // - Status Instalação != Finalizado

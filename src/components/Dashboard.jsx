@@ -12,6 +12,8 @@ const Dashboard = () => {
     // City Filter State
     const [cities, setCities] = React.useState([]);
     const [selectedCity, setSelectedCity] = React.useState('');
+    // Search State
+    const [searchTerm, setSearchTerm] = React.useState('');
 
     const loadData = React.useCallback(async (cityToFetch) => {
         setLoading(true);
@@ -47,6 +49,20 @@ const Dashboard = () => {
         loadData(newCity);
     };
 
+    // Handle Search Change
+    const handleSearchChange = (e) => {
+        setSearchTerm(e.target.value);
+    };
+
+    // Filter Logic
+    const getFilteredData = (dataList) => {
+        if (!dataList) return [];
+        if (!searchTerm) return dataList;
+        return dataList.filter(item =>
+            item.client.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    };
+
     if (loading && !kpiData) {
         return <div className="loading-screen">Carregando dados...</div>;
     }
@@ -60,42 +76,67 @@ const Dashboard = () => {
             <div className="top-bar">
                 <Header title="STATUS ENTREGA/INSTALAÇÃO OBRAS MATO GROSSO" />
 
-                <div className="city-selector">
-                    <label htmlFor="city-select">Filtrar por Cidade:</label>
-                    <select
-                        id="city-select"
-                        value={selectedCity}
-                        onChange={handleCityChange}
-                        className="city-dropdown"
-                    >
-                        <option value="">Todas</option>
-                        {cities.map(city => (
-                            <option key={city} value={city}>{city}</option>
-                        ))}
-                    </select>
+                <div className="filter-group">
+                    <div className="search-box">
+                        <label htmlFor="client-search">Buscar Cliente:</label>
+                        <input
+                            type="text"
+                            id="client-search"
+                            placeholder="Digite o nome..."
+                            value={searchTerm}
+                            onChange={handleSearchChange}
+                            className="search-input"
+                        />
+                    </div>
+
+                    <div className="city-selector">
+                        <label htmlFor="city-select">Filtrar por Cidade:</label>
+                        <select
+                            id="city-select"
+                            value={selectedCity}
+                            onChange={handleCityChange}
+                            className="city-dropdown"
+                        >
+                            <option value="">Todas</option>
+                            {cities.map(city => (
+                                <option key={city} value={city}>{city}</option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
             </div>
 
             <div className="dashboard-content">
                 <div className="column-grid">
-                    {/* Column 1: Priority */}
+                    {/* Column 0: Generate O.S. (New) */}
                     <div className="dashboard-column">
-                        <KPICard data={kpiData.priorities} />
+                        <KPICard data={kpiData.generateOS} />
                         <ProjectColumn
                             title="CLIENTE"
                             secondTitle="DIAS"
-                            data={projectData.priority}
+                            data={getFilteredData(projectData.generate_os)}
                             type="with-days"
                         />
                     </div>
 
-                    {/* Column 2: To Deliver */}
+                    {/* Column 1: To Deliver (Swapped) */}
                     <div className="dashboard-column">
                         <KPICard data={kpiData.toDeliver} />
                         <ProjectColumn
                             title="CLIENTE"
                             secondTitle="DIAS"
-                            data={projectData.to_deliver}
+                            data={getFilteredData(projectData.to_deliver)}
+                            type="with-days"
+                        />
+                    </div>
+
+                    {/* Column 2: Priority (Swapped) */}
+                    <div className="dashboard-column">
+                        <KPICard data={kpiData.priorities} />
+                        <ProjectColumn
+                            title="CLIENTE"
+                            secondTitle="DIAS"
+                            data={getFilteredData(projectData.priority)}
                             type="with-days"
                         />
                     </div>
@@ -105,7 +146,7 @@ const Dashboard = () => {
                         <KPICard data={kpiData.delivered} />
                         <ProjectColumn
                             title="CLIENTES SEM EQUIPE"
-                            data={projectData.delivered}
+                            data={getFilteredData(projectData.delivered)}
                             type="simple"
                             emptyMessage="SEM OBRAS A DESIGNAR"
                         />
@@ -117,7 +158,7 @@ const Dashboard = () => {
                         <ProjectColumn
                             title="CLIENTE"
                             secondTitle="EQUIPE INSTALAÇÃO"
-                            data={projectData.in_execution}
+                            data={getFilteredData(projectData.in_execution)}
                             type="with-team"
                         />
                     </div>

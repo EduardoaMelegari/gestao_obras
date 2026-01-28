@@ -18,9 +18,10 @@
 .kpi-title {
     font-size: 0.8rem;
     text-transform: uppercase;
-    color: #444;
+    color: #000;
     margin-bottom: 5px;
     letter-spacing: 0.5px;
+    font-weight: 800;
 }
 
 .kpi-value {

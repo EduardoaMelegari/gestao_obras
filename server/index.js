@@ -21,10 +21,16 @@ app.get('/api/dashboard', async (req, res) => {
         }
 
         // Fetch Data with optional filter
-        const priorities = await Project.findAll({ where: { ...whereClause, status: 'PRIORITY' } });
-        const toDeliver = await Project.findAll({ where: { ...whereClause, status: 'TO_DELIVER' } });
-        const delivered = await Project.findAll({ where: { ...whereClause, status: 'DELIVERED' } });
-        const inExecution = await Project.findAll({ where: { ...whereClause, status: 'IN_EXECUTION' } });
+        const queryOptions = {
+            where: { ...whereClause },
+            order: [['days', 'DESC']]
+        };
+
+        const generateOS = await Project.findAll({ ...queryOptions, where: { ...queryOptions.where, status: 'GENERATE_OS' } });
+        const priorities = await Project.findAll({ ...queryOptions, where: { ...queryOptions.where, status: 'PRIORITY' } });
+        const toDeliver = await Project.findAll({ ...queryOptions, where: { ...queryOptions.where, status: 'TO_DELIVER' } });
+        const delivered = await Project.findAll({ ...queryOptions, where: { ...queryOptions.where, status: 'DELIVERED' } });
+        const inExecution = await Project.findAll({ ...queryOptions, where: { ...queryOptions.where, status: 'IN_EXECUTION' } });
 
         // Get list of available cities for the filter dropdown
         // (In a real app, maybe do a distinct query, but here we can just hardcode or query)
@@ -35,6 +41,12 @@ app.get('/api/dashboard', async (req, res) => {
 
         // Calculate KPIs
         const kpi = {
+            generateOS: {
+                title: "GERAR O.S.",
+                count: generateOS.length,
+                color: "#FFA500", // Using same orange as requested, or maybe a different shade? Keeping consistent.
+                statusId: "generate_os"
+            },
             priorities: {
                 title: "PRIORIDADES PARA ENTREGA",
                 count: priorities.length,
@@ -65,6 +77,7 @@ app.get('/api/dashboard', async (req, res) => {
             cities, // Send available cities to frontend
             kpi,
             projects: {
+                generate_os: generateOS,
                 priority: priorities,
                 to_deliver: toDeliver,
                 delivered: delivered,

@@ -18,6 +18,7 @@ export async function fetchDashboardData(city) {
 
 // Keep constants for shapes if component relies on them initially, but mostly replaced by API
 export const KPI_DATA_SHAPE = {
+    generateOS: { title: "GERAR O.S.", count: 0, color: "#FFA500", statusId: "generate_os" },
     priorities: { title: "PRIORIDADES PARA ENTREGA", count: 0, color: "#FFA500", statusId: "priority" },
     toDeliver: { title: "OBRAS A ENTREGAR", count: 0, color: "#FFA500", statusId: "to_deliver" },
     delivered: { title: "OBRAS ENTREGUES", count: 0, color: "#FFA500", statusId: "delivered" },
