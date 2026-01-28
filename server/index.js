@@ -111,11 +111,11 @@ async function start() {
         // Initial Data Load
         await syncSheets();
 
-        // Auto-Sync every 10 seconds
+        // Auto-Sync every 5 minutes
         setInterval(async () => {
             console.log('Running auto-sync...');
             await syncSheets();
-        }, 10 * 1000);
+        }, 5 * 60 * 1000);
 
         app.listen(PORT, '0.0.0.0', () => {
             console.log(`Server running on http://0.0.0.0:${PORT}`);
