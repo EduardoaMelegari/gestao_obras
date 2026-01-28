@@ -14,6 +14,8 @@ const Dashboard = () => {
     const [selectedCity, setSelectedCity] = React.useState('');
     // Search State
     const [searchTerm, setSearchTerm] = React.useState('');
+    // Days Filter State
+    const [daysFilter, setDaysFilter] = React.useState('');
 
     const loadData = React.useCallback(async (cityToFetch) => {
         setLoading(true);
@@ -54,13 +56,31 @@ const Dashboard = () => {
         setSearchTerm(e.target.value);
     };
 
+    // Handle Days Filter Change
+    const handleDaysFilterChange = (e) => {
+        setDaysFilter(e.target.value);
+    };
+
     // Filter Logic
     const getFilteredData = (dataList) => {
         if (!dataList) return [];
-        if (!searchTerm) return dataList;
-        return dataList.filter(item =>
-            item.client.toLowerCase().includes(searchTerm.toLowerCase())
-        );
+
+        let filtered = dataList;
+
+        // Filter by Search Term
+        if (searchTerm) {
+            filtered = filtered.filter(item =>
+                item.client.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+        }
+
+        // Filter by Days
+        if (daysFilter) {
+            const minDays = parseInt(daysFilter);
+            filtered = filtered.filter(item => item.days > minDays);
+        }
+
+        return filtered;
     };
 
     if (loading && !kpiData) {
@@ -87,6 +107,21 @@ const Dashboard = () => {
                             onChange={handleSearchChange}
                             className="search-input"
                         />
+                    </div>
+
+                    <div className="days-selector">
+                        <label htmlFor="days-select">Filtro Dias:</label>
+                        <select
+                            id="days-select"
+                            value={daysFilter}
+                            onChange={handleDaysFilterChange}
+                            className="city-dropdown" // Reusing same style class
+                        >
+                            <option value="">Todos</option>
+                            <option value="30">{'>'} 30 Dias</option>
+                            <option value="60">{'>'} 60 Dias</option>
+                            <option value="90">{'>'} 90 Dias</option>
+                        </select>
                     </div>
 
                     <div className="city-selector">

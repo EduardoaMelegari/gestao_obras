@@ -41,7 +41,8 @@
 }
 
 .search-box,
-.city-selector {
+.city-selector,
+.days-selector {
     display: flex;
     align-items: center;
     gap: 10px;
