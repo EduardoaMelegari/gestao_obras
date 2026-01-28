@@ -42,14 +42,11 @@ async function fetchAndParseCSV(url) {
 async function syncSheets() {
     console.log('Starting Sync...');
 
-    // Wipe and Replace Strategy
-    // Note: In a real prod env with multiple sheets updating at different times, 
-    // we might want to delete only by city, e.g. { where: { city: sheet.city } }
-    // but for now, we wipe everything and re-fetch all configured sheets.
-    await Project.destroy({ where: {}, truncate: true });
-
     let allProjects = [];
 
+    // Fetch all data first (in parallel or sequence)
+    // Using simple loop for sequence to be safe with rate limits, or Promise.all for speed.
+    // Given the small number, sequence is fine but moving the delete is key.
     for (const sheet of SHEETS_CONFIG) {
         const rows = await fetchAndParseCSV(sheet.url);
         console.log(`Fetched ${rows.length} rows for ${sheet.city}.`);
@@ -82,10 +79,13 @@ async function syncSheets() {
     }
 
     if (allProjects.length > 0) {
+        // Critical: Only wipe DB once we have the new data ready
+        await Project.destroy({ where: {}, truncate: true });
+
         await Project.bulkCreate(allProjects);
         console.log(`Synced ${allProjects.length} projects.`);
     } else {
-        console.log("No valid projects found in sheet.");
+        console.log("No valid projects found in sheet. Taking no action to preserve existing data.");
     }
 }
 
