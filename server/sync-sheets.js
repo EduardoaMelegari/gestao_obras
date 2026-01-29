@@ -146,15 +146,18 @@ function determineStatus(row) {
         return 'PRIORITY';
     }
 
-    // 2. DELIVERED (User Request: Material Delivered = SIM, Not Finalized, Not In Execution)
+    // 2. DELIVERED
     // - Incluir Material Entregue = SIM
     // - Excluir Status = Finalizado
-    // - Excluir Status = Em Execução
+    // - Excluir Status = Em Execução/Andamento APENAS SE tiver equipe definida
+    // (Se estiver em execução mas sem equipe, considera como Entregue/Aguardando Equipe)
     const isDeliveredCandidate =
         materialEntregue === 'SIM' &&
         statusInstalacao !== 'FINALIZADO' &&
-        statusInstalacao !== 'EM EXECUÇÃO' &&
-        statusInstalacao !== 'EM ANDAMENTO';
+        (
+            (statusInstalacao !== 'EM EXECUÇÃO' && statusInstalacao !== 'EM ANDAMENTO') ||
+            equipe.length === 0
+        );
 
     if (isDeliveredCandidate) {
         return 'DELIVERED';
