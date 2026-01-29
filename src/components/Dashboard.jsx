@@ -192,8 +192,9 @@ const Dashboard = () => {
                         <KPICard data={{ ...kpiData.delivered, count: filteredDelivered.length }} />
                         <ProjectColumn
                             title="CLIENTES SEM EQUIPE"
+                            secondTitle="DIAS"
                             data={filteredDelivered}
-                            type="simple"
+                            type="with-days"
                             emptyMessage="SEM OBRAS A DESIGNAR"
                         />
                     </div>
