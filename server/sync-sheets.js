@@ -24,7 +24,7 @@ const SHEETS_CONFIG = [
 
 async function fetchAndParseCSV(url) {
     try {
-        const response = await axios.get(url);
+        const response = await axios.get(url, { timeout: 10000 });
         return new Promise((resolve, reject) => {
             Papa.parse(response.data, {
                 header: true,
@@ -53,27 +53,48 @@ async function syncSheets() {
 
         const validRows = rows.map(row => {
             const status = determineStatus(row);
-            const clientName = row['CLIENTE'] || 'Desconhecido';
+            const clientName = row['CLIENTE'] || row['CLIENTE '] || 'Desconhecido'; // Fix for trailing space in SINOP sheet
 
             // Cleanup logic if needed
             if (!clientName || clientName === 'Desconhecido') return null;
+            if (!status) return null;
 
             let days = parseInt(row['TEMPO ELABORAÇÃO O.S CONTINUO'] || row['TEMPO ELABORAÇÃO O.S'] || 0);
             if (isNaN(days)) days = 0;
 
-            // Filter out rows that didn't match any status rule
-            if (!status) return null;
+            // Vistoria Date & Status
+            const vistoriaStatus = row['STATUS VISTORIA'] || null;
+            const vistoriaDateStr = row['DATA SOLITAÇÃO VISTORIA'] || row['DATA VISTORIA'] || null;
+
+            // Calculate days for Vistoria if active (status is already determined above)
+            if (status === 'COMPLETED' && vistoriaDateStr) {
+                const parts = vistoriaDateStr.split('/');
+                if (parts.length === 3) {
+                    // DD/MM/YYYY
+                    const vDate = new Date(parts[2], parts[1] - 1, parts[0]);
+                    const today = new Date();
+                    // User requested formula: TODAY - DATA SOLITAÇÃO VISTORIA
+                    const diffTime = today - vDate;
+                    days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                }
+            }
 
             return {
                 client: clientName,
                 status: status,
+                project_status: row['STATUS PROJETO'] || null,
                 days: days,
                 city: sheet.city,
                 team: row['EQUIPE INSTALAÇÃO'] || '',
                 details: row['OBSERVAÇÃO DA INSTALAÇÃO'] || '',
-                external_id: row['ID PROJETO'] || null
+                external_id: row['ID PROJETO'] || null,
+                vistoria_status: row['STATUS VISTORIA'] || null,
+                vistoria_date: row['DATA SOLITAÇÃO VISTORIA'] || row['DATA VISTORIA'] || null,
+                vistoria_deadline: null
             };
         }).filter(p => p !== null); // Remove empty/invalid
+
+        // Removed Debug Logs
 
         allProjects.push(...validRows);
     }
@@ -164,6 +185,13 @@ function determineStatus(row) {
 
     if (isToDeliverCandidate) {
         return 'TO_DELIVER';
+    }
+
+    // 5. COMPLETED (For Vistoria Analysis)
+    // - Status Instalação == 'FINALIZADO'
+    // This allows these projects to be in the DB so we can check "Solicitar Vistorias"
+    if (statusInstalacao === 'FINALIZADO') {
+        return 'COMPLETED';
     }
 
     // Default Fallback

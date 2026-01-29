@@ -135,8 +135,8 @@ async function start() {
         await sequelize.sync({ alter: true }); // Creates tables if they don't exist and updates schema
         console.log('Database synced');
 
-        // Initial Data Load
-        await syncSheets();
+        // Initial Data Load - NON-BLOCKING
+        syncSheets().catch(err => console.error('Initial sync failed:', err));
 
         // Auto-Sync every 10 seconds
         setInterval(async () => {

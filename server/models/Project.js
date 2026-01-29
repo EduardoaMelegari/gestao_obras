@@ -7,8 +7,12 @@ const Project = sequelize.define('Project', {
         allowNull: false
     },
     status: {
-        type: DataTypes.ENUM('GENERATE_OS', 'PRIORITY', 'TO_DELIVER', 'DELIVERED', 'IN_EXECUTION'),
+        type: DataTypes.ENUM('GENERATE_OS', 'PRIORITY', 'TO_DELIVER', 'DELIVERED', 'IN_EXECUTION', 'COMPLETED'),
         allowNull: false
+    },
+    project_status: {
+        type: DataTypes.STRING,
+        allowNull: true
     },
     days: {
         type: DataTypes.INTEGER,
