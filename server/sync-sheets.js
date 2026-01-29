@@ -24,7 +24,7 @@ const SHEETS_CONFIG = [
 
 async function fetchAndParseCSV(url) {
     try {
-        const response = await axios.get(url, { timeout: 10000 });
+        const response = await axios.get(url, { timeout: 30000 });
         return new Promise((resolve, reject) => {
             Papa.parse(response.data, {
                 header: true,

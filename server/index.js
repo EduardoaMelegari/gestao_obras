@@ -17,7 +17,13 @@ app.get('/api/dashboard', async (req, res) => {
         const whereClause = {};
 
         if (city) {
-            whereClause.city = city;
+            if (Array.isArray(city)) {
+                whereClause.city = { [Op.in]: city };
+            } else if (typeof city === 'string' && city.includes(',')) {
+                whereClause.city = { [Op.in]: city.split(',') };
+            } else {
+                whereClause.city = city;
+            }
         }
 
         // Fetch Data with optional filter
@@ -78,7 +84,8 @@ app.get('/api/dashboard', async (req, res) => {
             where: {
                 ...queryOptions.where,
                 status: 'COMPLETED',
-                vistoria_status: 'Não Solicitado'
+                vistoria_status: 'Não Solicitado',
+                project_status: 'Finalizado'
             }
         });
 

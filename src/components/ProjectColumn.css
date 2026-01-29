@@ -3,9 +3,10 @@
     /* Orange background for the list area essentially */
     display: flex;
     flex-direction: column;
-    /* The screenshot shows white/blue headers, then orange list items */
-    /* Wait, the container background might be transparent or black, but the items span full width */
     height: 100%;
+    /* Fill the dashboard-column */
+    overflow: hidden;
+    /* Prevent container from scrolling */
 }
 
 .column-header {
@@ -101,6 +102,31 @@
     gap: 15px;
     align-items: center;
     border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.scrollable-list {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    /* Important for firefox/flex */
+}
+
+/* Custom Scrollbar for better look */
+.scrollable-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.scrollable-list::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.scrollable-list::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 3px;
+}
+
+.scrollable-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.5);
 }
 
 .pagination-arrows span {

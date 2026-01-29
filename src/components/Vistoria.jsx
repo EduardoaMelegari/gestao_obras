@@ -2,20 +2,21 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Header from './Header';
 import KPICard from './KPICard';
 import ProjectColumn from './ProjectColumn';
+import MultiSelect from './MultiSelect';
 import './Dashboard.css'; // Reuse dashboard styles for grid
 import { fetchDashboardData } from '../services/data';
 
 const Vistoria = () => {
     const [vistoriaData, setVistoriaData] = useState({ solicitar: [], solicitadas: [], atrasadas: [] });
     const [cities, setCities] = useState([]);
-    const [selectedCity, setSelectedCity] = useState('');
+    const [selectedCities, setSelectedCities] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(true);
 
-    const loadData = useCallback(async (cityToFetch, isBackground = false) => {
+    const loadData = useCallback(async (citiesToFetch, isBackground = false) => {
         if (!isBackground) setLoading(true);
         try {
-            const result = await fetchDashboardData(cityToFetch);
+            const result = await fetchDashboardData(citiesToFetch);
 
             if (result) {
                 if (result.vistoria) {
@@ -36,21 +37,19 @@ const Vistoria = () => {
 
     // Initial Load & Auto-Refresh
     useEffect(() => {
-        loadData(selectedCity); // Initial (shows loading)
+        loadData(selectedCities); // Initial (shows loading)
 
         // Refresh UI every 10 seconds to catch new data (Silent)
         const intervalId = setInterval(() => {
-            loadData(selectedCity, true);
+            loadData(selectedCities, true);
         }, 10 * 1000);
 
         return () => clearInterval(intervalId); // Cleanup on unmount
-    }, [selectedCity, loadData]);
+    }, [selectedCities, loadData]);
 
     // Handle City Change
-    const handleCityChange = (e) => {
-        const newCity = e.target.value;
-        setSelectedCity(newCity);
-        // loadData is triggered by useEffect dependency
+    const handleCityChange = (newSelectedCities) => {
+        setSelectedCities(newSelectedCities);
     };
 
     // Handle Search Change
@@ -99,17 +98,12 @@ const Vistoria = () => {
 
                     <div className="city-selector">
                         <label htmlFor="city-select">Filtrar por Cidade:</label>
-                        <select
-                            id="city-select"
-                            value={selectedCity}
+                        <MultiSelect
+                            options={cities}
+                            selected={selectedCities}
                             onChange={handleCityChange}
-                            className="city-dropdown"
-                        >
-                            <option value="">Todas</option>
-                            {cities.map(city => (
-                                <option key={city} value={city}>{city}</option>
-                            ))}
-                        </select>
+                            placeholder="Todas"
+                        />
                     </div>
                 </div>
             </div>

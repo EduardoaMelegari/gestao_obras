@@ -2,6 +2,7 @@ import React from 'react';
 import Header from './Header';
 import KPICard from './KPICard';
 import ProjectColumn from './ProjectColumn';
+import MultiSelect from './MultiSelect';
 import './Dashboard.css';
 
 const Dashboard = () => {
@@ -11,17 +12,20 @@ const Dashboard = () => {
 
     // City Filter State
     const [cities, setCities] = React.useState([]);
-    const [selectedCity, setSelectedCity] = React.useState('');
+    const [selectedCities, setSelectedCities] = React.useState([]); // Changed to array
     // Search State
     const [searchTerm, setSearchTerm] = React.useState('');
     // Days Filter State
     const [daysFilter, setDaysFilter] = React.useState('');
 
-    const loadData = React.useCallback(async (cityToFetch, isBackground = false) => {
+    const loadData = React.useCallback(async (citiesToFetch, isBackground = false) => {
         if (!isBackground) setLoading(true);
         try {
             const { fetchDashboardData } = await import('../services/data');
-            const result = await fetchDashboardData(cityToFetch);
+            // If empty array, it might fetch all or nothing depending on backend. 
+            // Usually if "All" is selected, we might pass empty or handle it in service.
+            // Let's pass the array directly.
+            const result = await fetchDashboardData(citiesToFetch);
 
             if (result) {
                 setKpiData(result.kpi);
@@ -37,25 +41,24 @@ const Dashboard = () => {
         } finally {
             if (!isBackground) setLoading(false);
         }
-    }, [selectedCity]);
+    }, [selectedCities]);
 
     // Initial Load & Auto-Refresh
     React.useEffect(() => {
-        loadData(selectedCity); // Initial (shows loading)
+        loadData(selectedCities); // Initial (shows loading)
 
         // Refresh UI every 10 seconds to catch new data (Silent)
         const intervalId = setInterval(() => {
-            loadData(selectedCity, true);
+            loadData(selectedCities, true);
         }, 10 * 1000);
 
         return () => clearInterval(intervalId); // Cleanup on unmount
-    }, [selectedCity]); // Re-run if city changes (loadData depends on it)
+    }, [selectedCities]); // Re-run if city changes
 
     // Handle City Change
-    const handleCityChange = (e) => {
-        const newCity = e.target.value;
-        setSelectedCity(newCity);
-        loadData(newCity);
+    const handleCityChange = (newSelectedCities) => {
+        setSelectedCities(newSelectedCities);
+        // loadData is triggered by useEffect dependency
     };
 
     // Handle Search Change
@@ -139,17 +142,12 @@ const Dashboard = () => {
 
                     <div className="city-selector">
                         <label htmlFor="city-select">Filtrar por Cidade:</label>
-                        <select
-                            id="city-select"
-                            value={selectedCity}
+                        <MultiSelect
+                            options={cities}
+                            selected={selectedCities}
                             onChange={handleCityChange}
-                            className="city-dropdown"
-                        >
-                            <option value="">Todas</option>
-                            {cities.map(city => (
-                                <option key={city} value={city}>{city}</option>
-                            ))}
-                        </select>
+                            placeholder="Todas"
+                        />
                     </div>
                 </div>
             </div>

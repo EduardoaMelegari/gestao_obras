@@ -6,7 +6,7 @@ const ProjectColumn = ({ title, secondTitle, thirdTitle, data, type, emptyMessag
         <div className="project-column-container">
             {/* ... */}
             {/* List Rows */}
-            <div className="column-list">
+            <div className="scrollable-list">
                 {data.map((item) => (
                     // ...
                     <div key={item.id} className={`list-row ${type}`}>
