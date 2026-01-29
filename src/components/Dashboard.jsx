@@ -84,10 +84,15 @@ const Dashboard = () => {
             );
         }
 
+
         // Filter by Days
         if (daysFilter) {
-            const minDays = parseInt(daysFilter);
-            filtered = filtered.filter(item => item.days > minDays);
+            if (daysFilter === '<30') {
+                filtered = filtered.filter(item => item.days < 30);
+            } else {
+                const minDays = parseInt(daysFilter);
+                filtered = filtered.filter(item => item.days > minDays);
+            }
         }
 
         return filtered;
@@ -134,6 +139,7 @@ const Dashboard = () => {
                             className="city-dropdown" // Reusing same style class
                         >
                             <option value="">Todos</option>
+                            <option value="<30">{'<'} 30 Dias</option>
                             <option value="30">{'>'} 30 Dias</option>
                             <option value="60">{'>'} 60 Dias</option>
                             <option value="90">{'>'} 90 Dias</option>
