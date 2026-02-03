@@ -62,6 +62,20 @@ async function syncSheets() {
             let days = parseInt(row['TEMPO ELABORAÇÃO O.S CONTINUO'] || row['TEMPO ELABORAÇÃO O.S'] || 0);
             if (isNaN(days)) days = 0;
 
+            // Fix for LUCAS DO RIO VERDE (and others) where O.S. days might not be calculated in sheet
+            if (status === 'GENERATE_OS') {
+                const dataPagamentoStr = row['DATA PAGAMENTO'];
+                if (dataPagamentoStr) {
+                    const parts = dataPagamentoStr.split('/');
+                    if (parts.length === 3) {
+                        const pDate = new Date(parts[2], parts[1] - 1, parts[0]);
+                        const today = new Date();
+                        const diffTime = today - pDate;
+                        days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    }
+                }
+            }
+
             // Vistoria Date & Status
             const vistoriaStatus = row['STATUS VISTORIA'] || null;
             const vistoriaDateStr = row['DATA SOLITAÇÃO VISTORIA'] || row['DATA VISTORIA'] || null;
