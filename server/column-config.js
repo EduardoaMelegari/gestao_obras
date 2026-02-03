@@ -7,6 +7,7 @@ const COLUMN_CONFIG = {
     // 4: PAGAMENTO
     'DATA PAGAMENTO': { names: ['DATA PAGAMENTO'], index: 5 },
     // 6: CATEGORIA
+    'CATEGORIA': { names: ['CATEGORIA'], index: 6 },
     // 7: TRIAGEM
     // 8: STATUS CONF. DOC.
     // 9: PROJETISTA

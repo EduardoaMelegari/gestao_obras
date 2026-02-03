@@ -149,6 +149,7 @@ async function syncSheets() {
                 client: clientName,
                 status: status,
                 project_status: getData('STATUS PROJETO'),
+                category: getData('CATEGORIA'),
                 days: days,
                 city: sheet.city,
                 team: getData('EQUIPE INSTALAÇÃO'),

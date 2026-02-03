@@ -14,6 +14,10 @@ const Project = sequelize.define('Project', {
         type: DataTypes.STRING,
         allowNull: true
     },
+    category: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
     days: {
         type: DataTypes.INTEGER,
         defaultValue: 0

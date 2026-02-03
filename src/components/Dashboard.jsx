@@ -12,20 +12,24 @@ const Dashboard = () => {
 
     // City Filter State
     const [cities, setCities] = React.useState([]);
-    const [selectedCities, setSelectedCities] = React.useState([]); // Changed to array
+    const [selectedCities, setSelectedCities] = React.useState([]); 
+    // Category Filter State
+    const [categories, setCategories] = React.useState([]);
+    const [selectedCategories, setSelectedCategories] = React.useState([]);
     // Search State
     const [searchTerm, setSearchTerm] = React.useState('');
     // Days Filter State
     const [daysFilter, setDaysFilter] = React.useState('');
 
-    const loadData = React.useCallback(async (citiesToFetch, isBackground = false) => {
+    const loadData = React.useCallback(async (citiesToFetch, categoriesToFetch, isBackground = false) => {
         if (!isBackground) setLoading(true);
         try {
             const { fetchDashboardData } = await import('../services/data');
-            // If empty array, it might fetch all or nothing depending on backend. 
-            // Usually if "All" is selected, we might pass empty or handle it in service.
-            // Let's pass the array directly.
-            const result = await fetchDashboardData(citiesToFetch);
+            // Check if arrays are proxy or simple
+            const cList = Array.isArray(citiesToFetch) ? citiesToFetch : [];
+            const catList = Array.isArray(categoriesToFetch) ? categoriesToFetch : [];
+
+            const result = await fetchDashboardData(cList, catList);
 
             if (result) {
                 setKpiData(result.kpi);
@@ -35,30 +39,38 @@ const Dashboard = () => {
                 if (result.cities && result.cities.length > 0) {
                     setCities(result.cities);
                 }
+                // Update available categories if provided
+                if (result.categories && result.categories.length > 0) {
+                   setCategories(result.categories);
+                }
             }
         } catch (err) {
             console.error(err);
         } finally {
             if (!isBackground) setLoading(false);
         }
-    }, [selectedCities]);
+    }, []);
 
     // Initial Load & Auto-Refresh
     React.useEffect(() => {
-        loadData(selectedCities); // Initial (shows loading)
+        loadData(selectedCities, selectedCategories); // Initial (shows loading)
 
         // Refresh UI every 10 seconds to catch new data (Silent)
         const intervalId = setInterval(() => {
-            loadData(selectedCities, true);
+            loadData(selectedCities, selectedCategories, true);
         }, 10 * 1000);
 
         return () => clearInterval(intervalId); // Cleanup on unmount
-    }, [selectedCities]); // Re-run if city changes
+    }, [selectedCities, selectedCategories, loadData]); // Re-run if filter changes
 
     // Handle City Change
     const handleCityChange = (newSelectedCities) => {
         setSelectedCities(newSelectedCities);
-        // loadData is triggered by useEffect dependency
+    };
+
+    // Handle Category Change
+    const handleCategoryChange = (newSelectedCategories) => {
+        setSelectedCategories(newSelectedCategories);
     };
 
     // Handle Search Change
@@ -155,7 +167,15 @@ const Dashboard = () => {
                             placeholder="Todas"
                         />
                     </div>
-                </div>
+                    <div className="city-selector">
+                        <label htmlFor="category-select">Filtrar por Categoria:</label>
+                        <MultiSelect
+                            options={categories}
+                            selected={selectedCategories}
+                            onChange={handleCategoryChange}
+                            placeholder="Selecione Categorias"
+                        />
+                    </div>                </div>
             </div>
 
             <div className="dashboard-content">

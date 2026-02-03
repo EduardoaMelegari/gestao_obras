@@ -13,7 +13,7 @@ app.use(express.json());
 // API Routes
 app.get('/api/dashboard', async (req, res) => {
     try {
-        const { city } = req.query;
+        const { city, category } = req.query;
         const whereClause = {};
 
         if (city) {
@@ -23,6 +23,16 @@ app.get('/api/dashboard', async (req, res) => {
                 whereClause.city = { [Op.in]: city.split(',') };
             } else {
                 whereClause.city = city;
+            }
+        }
+
+        if (category) {
+            if (Array.isArray(category)) {
+                whereClause.category = { [Op.in]: category };
+            } else if (typeof category === 'string' && category.includes(',')) {
+                whereClause.category = { [Op.in]: category.split(',') };
+            } else {
+                whereClause.category = category;
             }
         }
 
@@ -43,6 +53,12 @@ app.get('/api/dashboard', async (req, res) => {
             attributes: [[sequelize.fn('DISTINCT', sequelize.col('city')), 'city']]
         });
         const cities = allCities.map(c => c.city).filter(Boolean);
+
+        // Get list of available categories for the filter dropdown
+        const allCategories = await Project.findAll({
+            attributes: [[sequelize.fn('DISTINCT', sequelize.col('category')), 'category']]
+        });
+        const categories = allCategories.map(c => c.category).filter(Boolean);
 
         // Calculate KPIs
         const kpi = {
@@ -104,6 +120,7 @@ app.get('/api/dashboard', async (req, res) => {
 
         const data = {
             cities,
+            categories,
             kpi,
             projects: {
                 generate_os: generateOS,

@@ -1,9 +1,13 @@
 // Use relative path so it works with proxy (Dev: Vite Proxy, Prod: Nginx Proxy)
 const API_URL = '/api/dashboard';
 
-export async function fetchDashboardData(city) {
+export async function fetchDashboardData(city, category) {
     try {
-        const url = city ? `${API_URL}?city=${encodeURIComponent(city)}` : API_URL;
+        const queryParams = new URLSearchParams();
+        if (city && city.length > 0) queryParams.append('city', city);
+        if (category && category.length > 0) queryParams.append('category', category);
+
+        const url = `${API_URL}?${queryParams.toString()}`;
         const response = await fetch(url);
         if (!response.ok) {
             throw new Error('Network response was not ok');
