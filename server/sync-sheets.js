@@ -1,6 +1,7 @@
 import axios from 'axios';
 import Papa from 'papaparse';
 import Project from './models/Project.js';
+import COLUMN_CONFIG from './column-config.js';
 
 const SHEETS_CONFIG = [
     {
@@ -27,7 +28,7 @@ async function fetchAndParseCSV(url) {
         const response = await axios.get(url, { timeout: 30000 });
         return new Promise((resolve, reject) => {
             Papa.parse(response.data, {
-                header: true,
+                header: false, // Changed to false to get raw rows
                 skipEmptyLines: true,
                 complete: (results) => resolve(results.data),
                 error: (err) => reject(err)
@@ -39,32 +40,83 @@ async function fetchAndParseCSV(url) {
     }
 }
 
+function resolveColumnIndices(headers, config) {
+    const map = {};
+    const headerUpper = headers.map(h => (h || '').toString().trim().toUpperCase());
+
+    for (const [key, settings] of Object.entries(config)) {
+        let foundIndex = -1;
+        
+        // Try finding by Name
+        for (const name of settings.names) {
+            const idx = headerUpper.indexOf(name.toUpperCase());
+            if (idx !== -1) {
+                foundIndex = idx;
+                break;
+            }
+        }
+
+        // Fallback to Index
+        if (foundIndex === -1) {
+            if (settings.index !== -1 && settings.index < headers.length) {
+                console.warn(`Column '${key}' not found by name. Falling back to index ${settings.index}.`);
+                foundIndex = settings.index;
+            } else {
+                console.warn(`Column '${key}' not found and no valid fallback index.`);
+            }
+        }
+        
+        map[key] = foundIndex;
+    }
+    return map;
+}
+
+function getValue(row, index) {
+    if (index === -1 || index >= row.length) return '';
+    return row[index] || '';
+}
+
 async function syncSheets() {
     console.log('Starting Sync...');
 
     let allProjects = [];
 
-    // Fetch all data first (in parallel or sequence)
-    // Using simple loop for sequence to be safe with rate limits, or Promise.all for speed.
-    // Given the small number, sequence is fine but moving the delete is key.
     for (const sheet of SHEETS_CONFIG) {
-        const rows = await fetchAndParseCSV(sheet.url);
-        console.log(`Fetched ${rows.length} rows for ${sheet.city}.`);
+        const rawRows = await fetchAndParseCSV(sheet.url);
+        console.log(`Fetched ${rawRows.length} rows for ${sheet.city}.`);
 
-        const validRows = rows.map(row => {
-            const status = determineStatus(row);
-            const clientName = row['CLIENTE'] || row['CLIENTE '] || 'Desconhecido'; // Fix for trailing space in SINOP sheet
+        if (rawRows.length === 0) continue;
+
+        const headers = rawRows[0];
+        const dataRows = rawRows.slice(1);
+        const colMap = resolveColumnIndices(headers, COLUMN_CONFIG);
+
+        const validRows = dataRows.map(row => {
+            const getData = (key) => getValue(row, colMap[key]);
+            
+            // Reconstruct object for determineStatus
+            const rowObj = {
+                'STATUS INSTALAÇÃO': getData('STATUS INSTALAÇÃO'),
+                'PRIORIDADE': getData('PRIORIDADE'),
+                'MATERIAL ENTREGUE P/ EQUIPE INSTALAÇÃO?': getData('MATERIAL ENTREGUE P/ EQUIPE INSTALAÇÃO?'),
+                'O.S EMITIDA?': getData('O.S EMITIDA?'),
+                'EQUIPE INSTALAÇÃO': getData('EQUIPE INSTALAÇÃO'),
+                'DATA PAGAMENTO': getData('DATA PAGAMENTO')
+            };
+
+            const status = determineStatus(rowObj);
+            const clientName = getData('CLIENTE');
 
             // Cleanup logic if needed
             if (!clientName || clientName === 'Desconhecido') return null;
             if (!status) return null;
 
-            let days = parseInt(row['TEMPO ELABORAÇÃO O.S CONTINUO'] || row['TEMPO ELABORAÇÃO O.S'] || 0);
+            let days = parseInt(getData('TEMPO ELABORAÇÃO O.S CONTINUO') || getData('TEMPO ELABORAÇÃO O.S') || 0);
             if (isNaN(days)) days = 0;
 
             // Fix for LUCAS DO RIO VERDE (and others) where O.S. days might not be calculated in sheet
             if (status === 'GENERATE_OS') {
-                const dataPagamentoStr = row['DATA PAGAMENTO'];
+                const dataPagamentoStr = getData('DATA PAGAMENTO');
                 if (dataPagamentoStr) {
                     const parts = dataPagamentoStr.split('/');
                     if (parts.length === 3) {
@@ -77,8 +129,8 @@ async function syncSheets() {
             }
 
             // Vistoria Date & Status
-            const vistoriaStatus = row['STATUS VISTORIA'] || null;
-            const vistoriaDateStr = row['DATA SOLITAÇÃO VISTORIA'] || row['DATA VISTORIA'] || null;
+            const vistoriaStatus = getData('STATUS VISTORIA');
+            const vistoriaDateStr = getData('DATA SOLITAÇÃO VISTORIA');
 
             // Calculate days for Vistoria if active (status is already determined above)
             if (status === 'COMPLETED' && vistoriaDateStr) {
@@ -96,17 +148,17 @@ async function syncSheets() {
             return {
                 client: clientName,
                 status: status,
-                project_status: row['STATUS PROJETO'] || null,
+                project_status: getData('STATUS PROJETO'),
                 days: days,
                 city: sheet.city,
-                team: row['EQUIPE INSTALAÇÃO'] || '',
-                details: row['OBSERVAÇÃO DA INSTALAÇÃO'] || '',
-                external_id: row['ID PROJETO'] || null,
-                vistoria_status: row['STATUS VISTORIA'] || null,
-                vistoria_date: row['DATA SOLITAÇÃO VISTORIA'] || row['DATA VISTORIA'] || null,
+                team: getData('EQUIPE INSTALAÇÃO'),
+                details: getData('OBSERVAÇÃO DA INSTALAÇÃO'),
+                external_id: getData('ID PROJETO'),
+                vistoria_status: vistoriaStatus,
+                vistoria_date: vistoriaDateStr,
                 vistoria_deadline: null
             };
-        }).filter(p => p !== null); // Remove empty/invalid
+        }).filter(p => p !== null); 
 
         // Removed Debug Logs
 
