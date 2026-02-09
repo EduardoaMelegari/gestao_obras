@@ -26,6 +26,15 @@ const Project = sequelize.define('Project', {
         type: DataTypes.STRING,
         defaultValue: ''
     },
+    // New Fields for Vistoria Table
+    seller: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    folder: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
     external_id: {
         type: DataTypes.STRING,
     },

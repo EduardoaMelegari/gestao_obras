@@ -3,7 +3,9 @@ const COLUMN_CONFIG = {
     // 0: DATA
     'CLIENTE': { names: ['CLIENTE', 'CLIENTE '], index: 1 },
     // 2: PASTA
+    'PASTA': { names: ['PASTA'], index: 2 },
     // 3: VENDEDOR
+    'VENDEDOR': { names: ['VENDEDOR', 'CONSULTOR'], index: 3 },
     // 4: PAGAMENTO
     'DATA PAGAMENTO': { names: ['DATA PAGAMENTO'], index: 5 },
     // 6: CATEGORIA
@@ -13,7 +15,7 @@ const COLUMN_CONFIG = {
     // 9: PROJETISTA
     'STATUS PROJETO': { names: ['STATUS PROJETO'], index: 10 },
     // 11: LIBERADO INSTALAÇÃO
-    'ID PROJETO': { names: ['ID PROJETO', 'N° ORDEM SERVICO (OS)'], index: 12 }, 
+    'ID PROJETO': { names: ['ID PROJETO'], index: -1 },
     'O.S EMITIDA?': { names: ['O.S EMITIDA?', 'O.S. EMITIDA?'], index: 13 },
     'TEMPO ELABORAÇÃO O.S': { names: ['TEMPO ELABORAÇÃO O.S'], index: 14 },
     'TEMPO ELABORAÇÃO O.S CONTINUO': { names: ['TEMPO ELABORAÇÃO O.S CONTINUO'], index: 15 },
@@ -31,7 +33,7 @@ const COLUMN_CONFIG = {
     'STATUS VISTORIA': { names: ['STATUS VISTORIA'], index: 38 },
     // ...
     'DATA SOLITAÇÃO VISTORIA': { names: ['DATA SOLITAÇÃO VISTORIA', 'DATA VISTORIA'], index: 41 },
-    
+
     // Non-Lucas fields (Likely Sorriso indices might differ, but we need defaults)
     // If Sorriso has PRIORIDADE at 12? No, let's just guess or use name.
     'PRIORIDADE': { names: ['PRIORIDADE'], index: -1 } // -1 means if name not found, don't fallback to a dangerous index

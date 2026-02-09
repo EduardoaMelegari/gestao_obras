@@ -46,7 +46,7 @@ function resolveColumnIndices(headers, config) {
 
     for (const [key, settings] of Object.entries(config)) {
         let foundIndex = -1;
-        
+
         // Try finding by Name
         for (const name of settings.names) {
             const idx = headerUpper.indexOf(name.toUpperCase());
@@ -65,7 +65,7 @@ function resolveColumnIndices(headers, config) {
                 console.warn(`Column '${key}' not found and no valid fallback index.`);
             }
         }
-        
+
         map[key] = foundIndex;
     }
     return map;
@@ -93,7 +93,7 @@ async function syncSheets() {
 
         const validRows = dataRows.map(row => {
             const getData = (key) => getValue(row, colMap[key]);
-            
+
             // Reconstruct object for determineStatus
             const rowObj = {
                 'STATUS INSTALAÇÃO': getData('STATUS INSTALAÇÃO'),
@@ -157,9 +157,14 @@ async function syncSheets() {
                 external_id: getData('ID PROJETO'),
                 vistoria_status: vistoriaStatus,
                 vistoria_date: vistoriaDateStr,
-                vistoria_deadline: null
+                vistoria_status: vistoriaStatus,
+                vistoria_date: vistoriaDateStr,
+                vistoria_deadline: null,
+                // New Fields
+                seller: getData('VENDEDOR'),
+                folder: getData('PASTA')
             };
-        }).filter(p => p !== null); 
+        }).filter(p => p !== null);
 
         // Removed Debug Logs
 
