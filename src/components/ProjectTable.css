@@ -1,0 +1,168 @@
+.project-table-container {
+    background-color: transparent;
+    padding: 0;
+    margin-bottom: 24px;
+    display: flex;
+    flex-direction: column;
+    /* Height fit content, removal of max-height constraint from container level */
+}
+
+.project-table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    border-radius: 5px 5px 0 0;
+    color: white;
+}
+
+.project-table-body {
+    background-color: white;
+    padding: 10px;
+    border-radius: 0 0 5px 5px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.project-table-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin: 0;
+    color: white;
+    text-transform: uppercase;
+}
+
+/* DEPRECATED: Old header row class */
+.table-header-row {
+  display: none; 
+}
+
+.btn-export {
+    background-color: rgba(255, 255, 255, 0.2); /* Semi-transparent white */
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: background-color 0.2s;
+}
+
+.btn-export:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+}
+
+.table-wrapper {
+    overflow-x: auto;
+}
+
+.project-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    table-layout: auto; /* Allow columns to adapt */
+}
+
+.project-table th {
+    background-color: #F0F4F8; /* Light gray from Vistoria */
+    color: black;
+    font-weight: 600;
+    text-align: left;
+    padding: 10px;
+    border-bottom: 2px solid #E0E0E0;
+    position: sticky;
+    top: 0;
+}
+
+.project-table td {
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+    color: #333;
+    font-size: 0.9rem;
+    vertical-align: middle;
+}
+
+/* Index Column */
+.col-index {
+    width: 40px;
+    text-align: center;
+    color: #888;
+    font-weight: 500;
+}
+
+/* Row Coloring based on data classes */
+.project-table tr.row-red {
+    background-color: #ff5252;
+    color: white;
+}
+.project-table tr.row-red td {
+    color: white;
+    border-bottom-color: #e53935;
+}
+
+.project-table tr.row-yellow {
+    background-color: #ffd740; /* Amber a bit darker than pure yellow for contrast */
+    color: #333;
+}
+.project-table tr.row-yellow td {
+    color: #333;
+    border-bottom-color: #ffc107;
+}
+
+.project-table tr.row-blue {
+    background-color: #bbdefb;
+    color: #0d47a1;
+}
+.project-table tr.row-blue td {
+    color: #003c8f;
+    border-bottom-color: #90caf9;
+}
+
+/* Hover effects */
+.project-table tr:hover td {
+    opacity: 0.9;
+}
+
+/* Footer & Pagination */
+.table-footer {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding-top: 12px;
+    border-top: 1px solid #eee;
+    gap: 16px;
+}
+
+.page-info {
+    font-size: 0.85rem;
+    color: #666;
+}
+
+.pagination-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.page-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2rem;
+    color: #666;
+    padding: 0 4px;
+}
+
+.page-btn:disabled {
+    color: #ccc;
+    cursor: default;
+}
+
+.page-btn:hover:not(:disabled) {
+    color: #007bff;
+}
+
+.empty-cell {
+    text-align: center;
+    padding: 20px;
+    color: #999;
+    font-style: italic;
+}

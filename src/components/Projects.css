@@ -1,0 +1,12 @@
+.projects-view .dashboard-content {
+    overflow-y: auto;
+    display: block; /* Flex column is fine, but block works well for simple scrolling */
+    padding-bottom: 40px; /* Space at bottom */
+}
+
+/* Ensure tables are fully visible */
+.projects-view .dashboard-content > div {
+    /* The flex container wrapping tables */
+    height: auto;
+    min-height: 100%;
+}

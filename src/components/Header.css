@@ -1,7 +1,6 @@
 .app-header {
     background-color: transparent;
-    /* Changed from white to transparent to inherit from top-bar */
-    padding: 10px 0;
+    padding: 0;
     /* Remove horizontal padding as top-bar has it */
     display: flex;
     flex: 1;
@@ -12,21 +11,20 @@
     /* Remove border */
     box-shadow: none;
     /* Remove shadow */
-    margin-right: 20px;
-    /* Space for city selector */
+    margin-right: 15px;
+    height: 50px; /* Force a smaller height */
 }
 
 .header-left {
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 10px;
 }
 
 .header-left h1 {
-    font-size: 1.2rem;
+    font-size: 1rem;
     color: var(--color-text-primary);
-    /* Use var */
-    font-weight: 600;
+    font-weight: 500;
     margin: 0;
 }
 

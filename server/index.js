@@ -13,7 +13,7 @@ app.use(express.json());
 // API Routes
 app.get('/api/dashboard', async (req, res) => {
     try {
-        const { city, category } = req.query;
+        const { city, category, seller } = req.query;
         const whereClause = {};
 
         if (city) {
@@ -33,6 +33,16 @@ app.get('/api/dashboard', async (req, res) => {
                 whereClause.category = { [Op.in]: category.split(',') };
             } else {
                 whereClause.category = category;
+            }
+        }
+
+        if (seller) {
+            if (Array.isArray(seller)) {
+                whereClause.seller = { [Op.in]: seller };
+            } else if (typeof seller === 'string' && seller.includes(',')) {
+                whereClause.seller = { [Op.in]: seller.split(',') };
+            } else {
+                whereClause.seller = seller;
             }
         }
 
@@ -59,6 +69,12 @@ app.get('/api/dashboard', async (req, res) => {
             attributes: [[sequelize.fn('DISTINCT', sequelize.col('category')), 'category']]
         });
         const categories = allCategories.map(c => c.category).filter(Boolean);
+
+        // Get list of available sellers for the filter dropdown
+        const allSellers = await Project.findAll({
+            attributes: [[sequelize.fn('DISTINCT', sequelize.col('seller')), 'seller']]
+        });
+        const sellers = allSellers.map(s => s.seller).filter(Boolean);
 
         // Calculate KPIs
         const kpi = {
@@ -153,18 +169,148 @@ app.post('/api/sync', async (req, res) => {
     }
 });
 
+app.get('/api/projects', async (req, res) => {
+    try {
+        const { city, seller, category } = req.query;
+        const whereClause = {};
+
+        if (city) {
+            if (Array.isArray(city)) {
+                whereClause.city = { [Op.in]: city };
+            } else if (typeof city === 'string' && city.includes(',')) {
+                whereClause.city = { [Op.in]: city.split(',') };
+            } else {
+                whereClause.city = city;
+            }
+        }
+
+        if (seller) {
+            if (Array.isArray(seller)) {
+                whereClause.seller = { [Op.in]: seller };
+            } else if (typeof seller === 'string' && seller.includes(',')) {
+                whereClause.seller = { [Op.in]: seller.split(',') };
+            } else {
+                whereClause.seller = seller;
+            }
+        }
+
+        if (category) {
+            if (Array.isArray(category)) {
+                whereClause.category = { [Op.in]: category };
+            } else if (typeof category === 'string' && category.includes(',')) {
+                whereClause.category = { [Op.in]: category.split(',') };
+            } else {
+                whereClause.category = category;
+            }
+        }
+
+        // Expanded logic: Include 'PROJECT' status OR active pipeline statuses
+        whereClause.status = {
+            [Op.in]: ['PROJECT', 'GENERATE_OS', 'PRIORITY', 'IN_EXECUTION', 'TO_DELIVER']
+        }
+
+        const allProjects = await Project.findAll({
+            where: whereClause,
+            order: [['updatedAt', 'DESC']]
+        });
+
+        // Deduplication Logic: Prioritize PROJECT status entries
+        const uniqueProjectsMap = new Map();
+        
+        allProjects.forEach(p => {
+            // Unique key: Folder + City (or Client + City as fallback)
+            const cityKey = p.city ? p.city.trim().toUpperCase() : 'UNKNOWN';
+            const key = (p.folder && p.folder.toString().trim().length > 0) 
+                ? `FOLDER:${p.folder.trim()}|CITY:${cityKey}`
+                : `CLIENT:${p.client.trim().toUpperCase()}|CITY:${cityKey}`;
+
+            if (uniqueProjectsMap.has(key)) {
+                const existing = uniqueProjectsMap.get(key);
+                if (p.status === 'PROJECT' && existing.status !== 'PROJECT') {
+                    uniqueProjectsMap.set(key, p);
+                }
+            } else {
+                uniqueProjectsMap.set(key, p);
+            }
+        });
+
+        const dedupedProjects = Array.from(uniqueProjectsMap.values());
+
+        const group1 = []; // Novos
+        const group2 = []; // Em Andamento
+        const group3 = []; // Finalizados
+
+        const allowedInProgress = [
+            'NÃO INICIADO', 'NAO INICIADO',
+            'ATRASADO',
+            'ANDAMENTO', 'EM ANDAMENTO',
+            'FALTA ART',
+            'MANDAR'
+        ];
+
+        dedupedProjects.forEach(p => {
+            const status = (p.project_status || '').trim().toUpperCase();
+            const category = (p.category || '').trim().toUpperCase();
+
+            // 1. Finished
+            if (status === 'FINALIZADO') {
+                group3.push(p);
+                return;
+            }
+
+            // 2. In Progress (Strict Filter)
+            if (allowedInProgress.includes(status)) {
+                // Exclude specific categories or types
+                const isExcluded = 
+                    category.includes('SEM PROJETO') || 
+                    category.includes('AMPLIA') ||
+                    (p.details && (
+                        p.details.toUpperCase().includes('AMPLIAÇÃO') ||
+                        p.details.toUpperCase().includes('EM ESPERA')
+                    ));
+                
+                if (!isExcluded) {
+                    group2.push(p);
+                }
+                return;
+            }
+
+            // 3. New (Everything else)
+            // Example: Protocolado, Em Obra, Aguardando Conferência Doc...
+            group1.push(p);
+        });
+
+        res.json({
+            lastSync: new Date(),
+            kpi: {
+                new: { count: group1.length, title: 'NOVOS PROJETOS', color: '#007bff' },
+                inProgress: { count: group2.length, title: 'EM ANDAMENTO', color: '#ffc107' },
+                finished: { count: group3.length, title: 'FINALIZADOS', color: '#28a745' }
+            },
+            sections: {
+                new: group1,
+                inProgress: group2,
+                finished: group3
+            }
+        });
+
+    } catch (error) {
+        console.error('Error fetching projects dashboard:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Start Server
 async function start() {
     try {
-        await sequelize.sync({ alter: true }); // Creates tables if they don't exist and updates schema
+        await sequelize.sync({ alter: true });
         console.log('Database synced');
 
-        // Initial Data Load - NON-BLOCKING
+        // Initial Data Load
         syncSheets().catch(err => console.error('Initial sync failed:', err));
 
         // Auto-Sync every 10 seconds
         setInterval(async () => {
-            console.log('Running auto-sync...');
             await syncSheets();
         }, 10 * 1000);
 

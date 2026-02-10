@@ -3,6 +3,7 @@ import Header from './Header';
 import KPICard from './KPICard';
 import ProjectColumn from './ProjectColumn';
 import MultiSelect from './MultiSelect';
+import { fetchDashboardData } from '../services/data';
 import './Dashboard.css';
 
 const Dashboard = () => {
@@ -16,20 +17,18 @@ const Dashboard = () => {
     // Category Filter State
     const [categories, setCategories] = React.useState([]);
     const [selectedCategories, setSelectedCategories] = React.useState([]);
+    // Seller Filter State
+    const [sellers, setSellers] = React.useState([]);
+    const [selectedSellers, setSelectedSellers] = React.useState([]);
     // Search State
     const [searchTerm, setSearchTerm] = React.useState('');
     // Days Filter State
     const [daysFilter, setDaysFilter] = React.useState('');
 
-    const loadData = React.useCallback(async (citiesToFetch, categoriesToFetch, isBackground = false) => {
+    const loadData = React.useCallback(async (citiesToFetch, categoriesToFetch, sellersToFetch, isBackground = false) => {
         if (!isBackground) setLoading(true);
         try {
-            const { fetchDashboardData } = await import('../services/data');
-            // Check if arrays are proxy or simple
-            const cList = Array.isArray(citiesToFetch) ? citiesToFetch : [];
-            const catList = Array.isArray(categoriesToFetch) ? categoriesToFetch : [];
-
-            const result = await fetchDashboardData(cList, catList);
+            const result = await fetchDashboardData(citiesToFetch, categoriesToFetch, sellersToFetch);
 
             if (result) {
                 setKpiData(result.kpi);
@@ -43,6 +42,23 @@ const Dashboard = () => {
                 if (result.categories && result.categories.length > 0) {
                    setCategories(result.categories);
                 }
+                // Update available sellers if provided
+                if (result.sellers && result.sellers.length > 0) {
+                   setSellers(result.sellers);
+                } else {
+                    // Fail-safe: Extract from current projects if API doesn't return list yet
+                     const allProjs = [
+                        ...(result.projects.generate_os || []),
+                        ...(result.projects.priority || []),
+                        ...(result.projects.to_deliver || []),
+                        ...(result.projects.delivered || []),
+                        ...(result.projects.in_execution || [])
+                    ];
+                    const uniqueSellers = [...new Set(allProjs.map(p => p.seller).filter(Boolean))].sort();
+                    if (uniqueSellers.length > 0) {
+                        setSellers(uniqueSellers);
+                    }
+                }
             }
         } catch (err) {
             console.error(err);
@@ -53,15 +69,15 @@ const Dashboard = () => {
 
     // Initial Load & Auto-Refresh
     React.useEffect(() => {
-        loadData(selectedCities, selectedCategories); // Initial (shows loading)
+        loadData(selectedCities, selectedCategories, selectedSellers); // Initial (shows loading)
 
         // Refresh UI every 10 seconds to catch new data (Silent)
         const intervalId = setInterval(() => {
-            loadData(selectedCities, selectedCategories, true);
+            loadData(selectedCities, selectedCategories, selectedSellers, true);
         }, 10 * 1000);
 
         return () => clearInterval(intervalId); // Cleanup on unmount
-    }, [selectedCities, selectedCategories, loadData]); // Re-run if filter changes
+    }, [selectedCities, selectedCategories, selectedSellers, loadData]); // Re-run if filter changes
 
     // Handle City Change
     const handleCityChange = (newSelectedCities) => {
@@ -71,6 +87,11 @@ const Dashboard = () => {
     // Handle Category Change
     const handleCategoryChange = (newSelectedCategories) => {
         setSelectedCategories(newSelectedCategories);
+    };
+
+    // Handle Seller Change
+    const handleSellerChange = (newSelectedSellers) => {
+        setSelectedSellers(newSelectedSellers);
     };
 
     // Handle Search Change
@@ -127,7 +148,7 @@ const Dashboard = () => {
     return (
         <div className="dashboard-container">
             <div className="top-bar">
-                <Header title="STATUS ENTREGA/INSTALAÇÃO OBRAS MATO GROSSO" />
+                <Header title="INSTALAÇÃO OBRAS MATO GROSSO" />
 
                 <div className="filter-group">
                     <div className="search-box">
@@ -166,6 +187,15 @@ const Dashboard = () => {
                             onChange={handleCityChange}
                             placeholder="Todas"
                         />
+                    <div className="city-selector">
+                        <label htmlFor="seller-select">Filtrar por Vendedor:</label>
+                        <MultiSelect
+                            options={sellers}
+                            selected={selectedSellers}
+                            onChange={handleSellerChange}
+                            placeholder="Selecione Vendedores"
+                        />
+                    </div>
                     </div>
                     <div className="city-selector">
                         <label htmlFor="category-select">Filtrar por Categoria:</label>

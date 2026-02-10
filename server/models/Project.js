@@ -7,7 +7,7 @@ const Project = sequelize.define('Project', {
         allowNull: false
     },
     status: {
-        type: DataTypes.ENUM('GENERATE_OS', 'PRIORITY', 'TO_DELIVER', 'DELIVERED', 'IN_EXECUTION', 'COMPLETED'),
+        type: DataTypes.ENUM('GENERATE_OS', 'PRIORITY', 'TO_DELIVER', 'DELIVERED', 'IN_EXECUTION', 'COMPLETED', 'PROJECT'),
         allowNull: false
     },
     project_status: {
@@ -54,6 +54,44 @@ const Project = sequelize.define('Project', {
     city: {
         type: DataTypes.STRING,
         defaultValue: 'SORRISO'
+    },
+    // New Fields from Projects Tab
+    install_date: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    has_inverter: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    deadline: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    vistoria_opinion: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    meter_status: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    app_status: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    vistoria_2nd_date: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    // Calculated Field
+    days_since_doc_conf: {
+        type: DataTypes.INTEGER,
+        allowNull: true
+    },
+    doc_conf_date: {
+        type: DataTypes.STRING,
+        allowNull: true
     },
     details: {
         type: DataTypes.STRING

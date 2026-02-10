@@ -23,6 +23,15 @@ const Sidebar = ({ activePage, onNavigate, isExpanded, onToggle }) => {
                 </div>
 
                 <div
+                    className={`nav-item ${activePage === 'projects' ? 'active' : ''}`}
+                    onClick={() => onNavigate('projects')}
+                    title="Projetos"
+                >
+                    <span className="icon">🏗️</span>
+                    {isExpanded && <span className="label">Projetos</span>}
+                </div>
+
+                <div
                     className={`nav-item ${activePage === 'vistoria' ? 'active' : ''}`}
                     onClick={() => onNavigate('vistoria')}
                     title="Vistoria"

@@ -90,7 +90,7 @@ const Vistoria = () => {
     return (
         <div className="dashboard-container">
             <div className="top-bar">
-                <Header title="ANÁLISE PARA VISTORIA" />
+                <Header title="GESTÃO DE VISTORIAS" />
 
                 <div className="filter-group">
                     <div className="search-box">

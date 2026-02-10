@@ -44,8 +44,8 @@ const MultiSelect = ({ options, selected, onChange, placeholder = "Selecione..."
                     {selected.length === 0
                         ? placeholder
                         : selected.length === options.length
-                            ? "Todas as Cidades"
-                            : `${selected.length} selecionada(s)`}
+                            ? "Todos"
+                            : `${selected.length} selecionado(s)`}
                 </span>
                 <span className={`arrow ${isOpen ? 'up' : 'down'}`}>▼</span>
             </div>

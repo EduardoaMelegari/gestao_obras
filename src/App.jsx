@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Dashboard from './components/Dashboard';
+import Projects from './components/Projects';
 import Sidebar from './components/Sidebar';
 import Vistoria from './components/Vistoria';
 
@@ -22,6 +23,7 @@ function App() {
         transition: 'margin-left 0.3s ease, width 0.3s ease'
       }}>
         {activePage === 'dashboard' && <Dashboard />}
+        {activePage === 'projects' && <Projects />}
         {activePage === 'vistoria' && <Vistoria />}
       </div>
     </div>
