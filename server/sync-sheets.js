@@ -206,6 +206,29 @@ async function syncSheets() {
                 }
             }
 
+            // Protocol Date Calculation
+            const protocolDateStr = getData('DATA PROTOCOLO');
+            let daysSinceProtocol = null;
+
+            if (protocolDateStr) {
+                let parts = protocolDateStr.split('/');
+                if (parts.length === 3) {
+                    const cDate = new Date(parts[2], parts[1] - 1, parts[0]);
+                    if (!isNaN(cDate.getTime())) {
+                        const today = new Date();
+                        const diffTime = today - cDate;
+                        daysSinceProtocol = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                    }
+                } else {
+                     const cDate = new Date(protocolDateStr);
+                     if (!isNaN(cDate.getTime())) {
+                         const today = new Date();
+                         const diffTime = today - cDate;
+                         daysSinceProtocol = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                     }
+                }
+            }
+
             // Calculate days for Vistoria if active (status is already determined above)
             if (status === 'COMPLETED' && vistoriaDateStr) {
                 const parts = vistoriaDateStr.split('/');
@@ -243,7 +266,9 @@ async function syncSheets() {
                 app_status: getData('STATUS APP'),
                 vistoria_2nd_date: getData('DATA 2° SOLITAÇÃO VISTORIA'),
                 days_since_doc_conf: daysSinceDocConf,
-                doc_conf_date: docConfDateStr
+                doc_conf_date: docConfDateStr,
+                protocol_date: protocolDateStr,
+                days_since_protocol: daysSinceProtocol
             };
         }).filter(p => p !== null);
 

@@ -93,6 +93,14 @@ const Project = sequelize.define('Project', {
         type: DataTypes.STRING,
         allowNull: true
     },
+    protocol_date: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    days_since_protocol: {
+        type: DataTypes.INTEGER,
+        allowNull: true
+    },
     details: {
         type: DataTypes.STRING
     }

@@ -16,6 +16,7 @@ const Projects = () => {
     
     // Tab State
     const [activeTab, setActiveTab] = useState('andamento');
+    const [protocoladosSubTab, setProtocoladosSubTab] = useState('clean'); // 'clean' or 'pendencias'
 
     // Filter State
     const [cities, setCities] = useState([]);
@@ -92,9 +93,12 @@ const Projects = () => {
         if (!dataList) return [];
         let filtered = dataList;
         if (searchTerm) {
+            const term = searchTerm.toLowerCase();
             filtered = filtered.filter(item =>
-                (item.client || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-                (item.city || '').toLowerCase().includes(searchTerm.toLowerCase())
+                (item.client || '').toLowerCase().includes(term) || 
+                (item.city || '').toLowerCase().includes(term) ||
+                (item.external_id || '').toString().toLowerCase().includes(term) ||
+                (item.folder || '').toString().toLowerCase().includes(term)
             );
         }
         return filtered;
@@ -133,8 +137,18 @@ const Projects = () => {
         return status.includes('mandar') && obs.includes('sm');
     }).sort((a, b) => (b.days_since_doc_conf || 0) - (a.days_since_doc_conf || 0));
 
-    const projectsConcluidos = allFinished;
+    // Split Protocolados into two groups: With OBS and Without OBS
+    const projectsProtocoladosFiltered = allInProgress.filter(p => {
+        const status = (p.project_status || '').toLowerCase().trim();
+        return status === 'protocolado';
+    });
+
+    const projectsProtocoladosClean = projectsProtocoladosFiltered.filter(p => !p.details || !p.details.trim()).sort((a, b) => (b.days_since_protocol || 0) - (a.days_since_protocol || 0));
     
+    const projectsProtocoladosPendencias = projectsProtocoladosFiltered.filter(p => p.details && p.details.trim()).sort((a, b) => (b.days_since_protocol || 0) - (a.days_since_protocol || 0));
+
+    const projectsConcluidos = allFinished;
+
     // Using filteredFinished (which comes from finished section)
     const projectsAnaliseCircuito = [...allNew, ...allInProgress, ...allFinished].filter(p => {
         const parecer = (p.vistoria_opinion || '').toLowerCase(); // Mapped to PARECER column
@@ -142,6 +156,36 @@ const Projects = () => {
                parecer.includes('analise de circuito') || 
                parecer.includes('obra 60d') || 
                parecer.includes('obra 120d');
+    }).sort((a, b) => {
+        const getDeadlineDate = (item) => {
+             const parecer = (item.vistoria_opinion || '').toLowerCase();
+             const baseDateStr = item.protocol_date || item.install_date;
+             
+             // Default to far future if waiting/invalid
+             if (!baseDateStr) return new Date(8640000000000000);
+
+             let startDate = null;
+             // Parsing Logic
+             if (baseDateStr.includes('/')) {
+                 const parts = baseDateStr.split('/');
+                 if (parts.length === 3) startDate = new Date(parts[2], parts[1] - 1, parts[0]);
+             } else {
+                 startDate = new Date(baseDateStr);
+             }
+             
+             if (!startDate || isNaN(startDate.getTime())) return new Date(8640000000000000);
+
+             let days = 0;
+             if (parecer.includes('análise') || parecer.includes('analise')) days = 30;
+             else if (parecer.includes('obra 60d')) days = 60;
+             else if (parecer.includes('obra 120d')) days = 120;
+             
+             const end = new Date(startDate);
+             end.setDate(end.getDate() + days);
+             return end;
+        };
+
+        return getDeadlineDate(a) - getDeadlineDate(b);
     });
 
     const allProjects = [...allNew, ...allInProgress, ...allFinished];
@@ -163,7 +207,7 @@ const Projects = () => {
         { header: 'CLIENTE', accessor: 'client' },
         { header: 'STATUS', accessor: 'project_status', width: '12%' },
         { header: 'PARECER ENERGISA', accessor: 'vistoria_opinion', width: '15%' },
-        { header: 'DATA INICIAL OBRA', accessor: 'install_date', width: '12%' },
+        { header: 'DATA PROTOCOLO', accessor: 'protocol_date', width: '12%' },
         { 
             header: 'DATA FINAL PREVISTA', 
             accessor: 'deadline', 
@@ -173,24 +217,31 @@ const Projects = () => {
                 // Depending on data format (assuming DD/MM/YYYY or YYYY-MM-DD), logic varies.
                 // Assuming stored as text, we might need robust parsing. 
                 // BUT for now, simple JS Add Days Logic if date is valid.
-                if (!item.install_date) return '-';
-
+                
                 // Helper to parse "DD/MM/YYYY" or "YYYY-MM-DD"
                 const parseDate = (str) => {
                     if (!str) return null;
-                    // Try ISO
+                    
+                    // Priority: PT-BR DD/MM/YYYY (Common in sheets)
+                    if (str.includes('/')) {
+                        const parts = str.split('/');
+                        if (parts.length === 3) {
+                            return new Date(parts[2], parts[1] - 1, parts[0]);
+                        }
+                    }
+
+                    // Fallback: ISO or other standard formats
                     let d = new Date(str);
                     if (!isNaN(d.getTime())) return d;
                     
-                    // Try PT-BR DD/MM/YYYY
-                    const parts = str.split('/');
-                    if (parts.length === 3) {
-                        return new Date(parts[2], parts[1] - 1, parts[0]);
-                    }
                     return null;
                 };
 
-                const startDate = parseDate(item.install_date);
+                // Use Protocol Date as primary source, fallback to Install Date
+                const baseDateStr = item.protocol_date || item.install_date;
+                if (!baseDateStr) return '-';
+
+                const startDate = parseDate(baseDateStr);
                 if (!startDate) return item.deadline || '-';
 
                 let daysToAdd = 0;
@@ -210,6 +261,25 @@ const Projects = () => {
                 return endDate.toLocaleDateString('pt-BR');
             }
         },
+    ];
+
+    const columnsProtocolados = [
+        { header: 'CIDADE', accessor: 'city', width: '10%' },
+        { header: 'PASTA', accessor: 'folder', width: '8%' },
+        { header: 'ID', accessor: 'external_id', width: '10%' },
+        { header: 'CLIENTE', accessor: 'client' },
+        { header: 'DATA PROTOCOLO', accessor: 'protocol_date', width: '15%' },
+        { 
+            header: 'DIAS PROTOCOLADO', 
+            accessor: 'days_since_protocol', 
+            width: '15%',
+            render: (item) => {
+                const val = item.days_since_protocol;
+                if (val === null || val === undefined) return '-';
+                return val;
+            }
+        },
+        { header: 'OBS', accessor: 'details', width: '20%' },
     ];
 
     const columnsConcluidos = [
@@ -236,6 +306,7 @@ const Projects = () => {
     ];
 
     const level2Tabs = [
+        { id: 'protocolados', label: 'Projetos Protocolados', color: '#0ea5e9' },
         { id: 'analise', label: 'Análise de Circuito', color: '#8b5cf6' },
         { id: 'concluidos', label: 'Projetos Concluídos', color: '#22c55e' },
     ];
@@ -273,6 +344,61 @@ const Projects = () => {
                         headerColor="#c2410c"
                     />
                 );
+            case 'protocolados':
+                return (
+                    <div>
+                        <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+                            <button 
+                                onClick={() => setProtocoladosSubTab('clean')}
+                                style={{
+                                    padding: '8px 16px',
+                                    backgroundColor: protocoladosSubTab === 'clean' ? '#0ea5e9' : '#1e293b',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontWeight: 'bold',
+                                    opacity: protocoladosSubTab === 'clean' ? 1 : 0.7
+                                }}
+                            >
+                                Protocolados ({getFilteredData(projectsProtocoladosClean).length})
+                            </button>
+                            <button 
+                                onClick={() => setProtocoladosSubTab('pendencias')}
+                                style={{
+                                    padding: '8px 16px',
+                                    backgroundColor: protocoladosSubTab === 'pendencias' ? '#dc2626' : '#1e293b',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontWeight: 'bold',
+                                    opacity: protocoladosSubTab === 'pendencias' ? 1 : 0.7
+                                }}
+                            >
+                                Com Pendências ({getFilteredData(projectsProtocoladosPendencias).length})
+                            </button>
+                        </div>
+
+                        {protocoladosSubTab === 'clean' ? (
+                            <ProjectTable 
+                                title="PROJETOS PROTOCOLADOS"
+                                columns={columnsProtocolados}
+                                data={getFilteredData(projectsProtocoladosClean)}
+                                getRowClass={getRowClassInProgress}
+                                headerColor="#0ea5e9"
+                            />
+                        ) : (
+                             <ProjectTable 
+                                title="PROJETOS COM PENDÊNCIAS"
+                                columns={columnsProtocolados}
+                                data={getFilteredData(projectsProtocoladosPendencias)}
+                                getRowClass={getRowClassInProgress}
+                                headerColor="#dc2626"
+                            />
+                        )}
+                    </div>
+                );
             case 'analise':
                 return (
                     <ProjectTable 
@@ -305,6 +431,8 @@ const Projects = () => {
                 return getFilteredData(projectsPendentes).length;
             case 'energisa':
                 return getFilteredData(projectsEnviarEnergisa).length;
+            case 'protocolados':
+                return getFilteredData(projectsProtocoladosClean).length + getFilteredData(projectsProtocoladosPendencias).length;
             case 'analise':
                 return getFilteredData(projectsAnaliseCircuito).length;
             case 'concluidos':
@@ -326,7 +454,7 @@ const Projects = () => {
                             type="text"
                             id="client-search"
                             className="search-input"
-                            placeholder="Cliente ou Cidade"
+                            placeholder="Busca..."
                             value={searchTerm}
                             onChange={handleSearchChange}
                         />

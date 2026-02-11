@@ -245,7 +245,8 @@ app.get('/api/projects', async (req, res) => {
             'ATRASADO',
             'ANDAMENTO', 'EM ANDAMENTO',
             'FALTA ART',
-            'MANDAR'
+            'MANDAR',
+            'PROTOCOLADO'
         ];
 
         dedupedProjects.forEach(p => {

@@ -27,7 +27,8 @@ const COLUMN_CONFIG = {
     'STATUS MEDIDOR': { names: ['STATUS MEDIDOR'], index: -1 },
     'STATUS APP': { names: ['STATUS APP'], index: -1 },
     'DATA 2° SOLITAÇÃO VISTORIA': { names: ['DATA 2° SOLITAÇÃO VISTORIA', 'DATA 2 SOLICITACAO VISTORIA'], index: -1 },
-    'PRIORIDADE': { names: ['PRIORIDADE'], index: -1 }
+    'PRIORIDADE': { names: ['PRIORIDADE'], index: -1 },
+    'DATA PROTOCOLO': { names: ['DATA PROTOCOLO'], index: -1 }
 };
 
 export default COLUMN_CONFIG;
