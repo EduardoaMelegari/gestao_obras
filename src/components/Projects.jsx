@@ -3,18 +3,20 @@ import Header from './Header';
 import ProjectTable from './ProjectTable';
 import MultiSelect from './MultiSelect';
 import './Dashboard.css'; 
-import './Projects.css'; // specific overrides
+import './Projects.css';
 import { fetchProjectData } from '../services/data';
 
 const Projects = () => {
     const [projectData, setProjectData] = useState({ new: [], inProgress: [], finished: [] });
-    // Default KPI Data structure to avoid null checks on first render
     const [kpiData, setKpiData] = useState({
         new: { count: 0, title: 'NOVOS PROJETOS', color: '#007bff' },
         inProgress: { count: 0, title: 'EM ANDAMENTO', color: '#ffc107' },
         finished: { count: 0, title: 'FINALIZADOS', color: '#28a745' }
     });
     
+    // Tab State
+    const [activeTab, setActiveTab] = useState('andamento');
+
     // Filter State
     const [cities, setCities] = useState([]);
     const [selectedCities, setSelectedCities] = useState([]);
@@ -30,14 +32,23 @@ const Projects = () => {
         if (!isBackground) setLoading(true);
         try {
             const result = await fetchProjectData(citiesToFetch, categoriesToFetch, sellersToFetch);
-
             if (result) {
                 if (result.sections) {
-                    setProjectData(result.sections);
+                    // Sort each section by a stable key to prevent rows from jumping on refresh
+                    const stableSort = (arr) => [...arr].sort((a, b) => {
+                        const clientA = (a.client || '').toLowerCase();
+                        const clientB = (b.client || '').toLowerCase();
+                        if (clientA !== clientB) return clientA.localeCompare(clientB);
+                        // Secondary sort by id for clients with same name
+                        return (a.id || 0) - (b.id || 0);
+                    });
+                    setProjectData({
+                        new: stableSort(result.sections.new || []),
+                        inProgress: stableSort(result.sections.inProgress || []),
+                        finished: stableSort(result.sections.finished || []),
+                    });
                 }
-                if (result.kpi) {
-                    setKpiData(result.kpi);
-                }
+                if (result.kpi) setKpiData(result.kpi);
             }
         } catch (err) {
             console.error(err);
@@ -46,7 +57,6 @@ const Projects = () => {
         }
     }, []);
 
-    // Initial load for filter options (we can grab them from the main dashboard API or similar)
     useEffect(() => {
         const fetchFilters = async () => {
             try {
@@ -64,11 +74,9 @@ const Projects = () => {
 
     useEffect(() => {
         loadData(selectedCities, selectedCategories, selectedSellers);
-        
         const intervalId = setInterval(() => {
             loadData(selectedCities, selectedCategories, selectedSellers, true);
         }, 10 * 1000);
-
         return () => clearInterval(intervalId);
     }, [selectedCities, selectedCategories, selectedSellers, loadData]);
 
@@ -92,14 +100,53 @@ const Projects = () => {
         return filtered;
     };
 
-    const filteredInProgress = getFilteredData(projectData.inProgress);
-    const filteredFinished = getFilteredData(projectData.finished);
+    // --- Derived data per tab ---
+    const allInProgress = projectData.inProgress || [];
+    const allFinished = projectData.finished || [];
+    const allNew = projectData.new || [];
 
-    // --- Table Configurations ---
+    // Sub-filters from inProgress
+    const projectsEmAndamento = allInProgress.filter(p => {
+        const status = (p.project_status || '').toLowerCase();
+        const category = (p.category || '').toLowerCase();
+        
+        // Logical filter: Status must be "Não Iniciado" AND Category must be "PROJETO"
+        const isNaoIniciado = status.includes('não iniciado') || status.includes('nao iniciado');
+        const isProjeto = category.trim() === 'projeto'; 
+        
+        return isNaoIniciado && isProjeto;
+    }).sort((a, b) => (b.days_since_doc_conf || 0) - (a.days_since_doc_conf || 0));
 
-    // 2. PROJECTS IN PROGRESS (Em Andamento)
-    // Columns based on User Image 2: CIDADE, PASTA, CLIENTE, STATUS, OBS.
-    // Has Color Logic.
+    const projectsAtrasados = allInProgress.filter(p => {
+        const status = (p.project_status || '').toLowerCase();
+        return status.includes('atrasado') || status.includes('não iniciado') || status.includes('nao iniciado');
+    });
+
+    const projectsPendentes = allInProgress.filter(p => {
+        const status = (p.project_status || '').toLowerCase();
+        return status.includes('falta art');
+    }).sort((a, b) => (b.days_since_doc_conf || 0) - (a.days_since_doc_conf || 0));
+
+    const projectsEnviarEnergisa = allInProgress.filter(p => {
+        const status = (p.project_status || '').toLowerCase();
+        const obs = (p.details || '').toLowerCase();
+        return status.includes('mandar') && obs.includes('sm');
+    }).sort((a, b) => (b.days_since_doc_conf || 0) - (a.days_since_doc_conf || 0));
+
+    const projectsConcluidos = allFinished;
+    
+    // Using filteredFinished (which comes from finished section)
+    const projectsAnaliseCircuito = [...allNew, ...allInProgress, ...allFinished].filter(p => {
+        const parecer = (p.vistoria_opinion || '').toLowerCase(); // Mapped to PARECER column
+        return parecer.includes('análise de circuito') || 
+               parecer.includes('analise de circuito') || 
+               parecer.includes('obra 60d') || 
+               parecer.includes('obra 120d');
+    });
+
+    const allProjects = [...allNew, ...allInProgress, ...allFinished];
+
+    // --- Table Columns ---
     const columnsInProgress = [
         { header: 'CIDADE', accessor: 'city', width: '10%' },
         { header: 'PASTA', accessor: 'folder', width: '8%' },
@@ -110,26 +157,162 @@ const Projects = () => {
         { header: 'OBS', accessor: 'details', width: '20%' },
     ];
 
+    const columnsAnalise = [
+        { header: 'CIDADE', accessor: 'city', width: '8%' },
+        { header: 'ID', accessor: 'external_id', width: '10%' },
+        { header: 'CLIENTE', accessor: 'client' },
+        { header: 'STATUS', accessor: 'project_status', width: '12%' },
+        { header: 'PARECER ENERGISA', accessor: 'vistoria_opinion', width: '15%' },
+        { header: 'DATA INICIAL OBRA', accessor: 'install_date', width: '12%' },
+        { 
+            header: 'DATA FINAL PREVISTA', 
+            accessor: 'deadline', 
+            width: '12%',
+            render: (item) => {
+                const parecer = (item.vistoria_opinion || '').toLowerCase();
+                // Depending on data format (assuming DD/MM/YYYY or YYYY-MM-DD), logic varies.
+                // Assuming stored as text, we might need robust parsing. 
+                // BUT for now, simple JS Add Days Logic if date is valid.
+                if (!item.install_date) return '-';
+
+                // Helper to parse "DD/MM/YYYY" or "YYYY-MM-DD"
+                const parseDate = (str) => {
+                    if (!str) return null;
+                    // Try ISO
+                    let d = new Date(str);
+                    if (!isNaN(d.getTime())) return d;
+                    
+                    // Try PT-BR DD/MM/YYYY
+                    const parts = str.split('/');
+                    if (parts.length === 3) {
+                        return new Date(parts[2], parts[1] - 1, parts[0]);
+                    }
+                    return null;
+                };
+
+                const startDate = parseDate(item.install_date);
+                if (!startDate) return item.deadline || '-';
+
+                let daysToAdd = 0;
+                if (parecer.includes('análise de circuito') || parecer.includes('analise de circuito')) {
+                    daysToAdd = 30;
+                } else if (parecer.includes('obra 60d')) {
+                    daysToAdd = 60;
+                } else if (parecer.includes('obra 120d')) {
+                    daysToAdd = 120;
+                } else {
+                    return item.deadline || '-';
+                }
+
+                const endDate = new Date(startDate);
+                endDate.setDate(endDate.getDate() + daysToAdd);
+                
+                return endDate.toLocaleDateString('pt-BR');
+            }
+        },
+    ];
+
+    const columnsConcluidos = [
+        { header: 'CIDADE', accessor: 'city', width: '8%' },
+        { header: 'ID', accessor: 'external_id', width: '10%' },
+        { header: 'CLIENTE', accessor: 'client' },
+        { header: 'STATUS', accessor: 'project_status', width: '12%' },
+        { header: 'PARECER ENERGISA', accessor: 'vistoria_opinion', width: '15%' },
+    ];
+
     const getRowClassInProgress = (item) => {
         const status = (item.project_status || '').toLowerCase();
-        // Logic inferred from images/standard practices
-        if (status.includes('atrasado') || status.includes('não iniciado')) return 'row-red';
+        if (status.includes('atrasado') || status.includes('não iniciado') || status.includes('nao iniciado')) return 'row-red';
         if (status.includes('falta art') || status.includes('pendente')) return 'row-yellow';
         if (status.includes('andamento') || status.includes('em andamento')) return 'row-blue';
         return '';
     };
 
-    // 3. PROJECTS ANALYSIS/FINISHED (Análise de Circuito/Obra)
-    // Columns based on User Image 3: CIDADE, ID, CLIENTE, STATUS, PARECER ENERGISA, DATA INICIAL OBRA, DATA FINAL PREVISTA
-    const columnsFinished = [
-        { header: 'CIDADE', accessor: 'city', width: '8%' },
-        { header: 'ID', accessor: 'external_id', width: '10%' },
-        { header: 'CLIENTE', accessor: 'client' },
-        { header: 'STATUS', accessor: 'project_status', width: '12%' },
-        { header: 'PARECER ENERGISA', accessor: 'vistoria_opinion', width: '15%' }, // Mapped to 'PARECER VISTORIA' column logic if applicable
-        { header: 'DATA INICIAL OBRA', accessor: 'install_date', width: '12%' },
-        { header: 'DATA FINAL PREVISTA', accessor: 'deadline', width: '12%' },
+    // --- Tab config ---
+    const level1Tabs = [
+        { id: 'elaboracao', label: 'Projetos em Elaboração', color: '#3b82f6' },
+        { id: 'pendentes', label: 'Projetos Pendentes (ART)', color: '#eab308' },
+        { id: 'energisa', label: 'Projetos Enviar Energisa', color: '#f97316' },
     ];
+
+    const level2Tabs = [
+        { id: 'analise', label: 'Análise de Circuito', color: '#8b5cf6' },
+        { id: 'concluidos', label: 'Projetos Concluídos', color: '#22c55e' },
+    ];
+
+    const getTabContent = () => {
+        switch (activeTab) {
+            case 'elaboracao':
+            case 'andamento': // fallback
+                return (
+                    <ProjectTable 
+                        title="PROJETOS EM ELABORAÇÃO"
+                        columns={columnsInProgress}
+                        data={getFilteredData(projectsEmAndamento)}
+                        getRowClass={getRowClassInProgress}
+                        headerColor="#1e3a5f"
+                    />
+                );
+            case 'pendentes':
+                return (
+                    <ProjectTable 
+                        title="PROJETOS PENDENTES - AGUARDANDO ART"
+                        columns={columnsInProgress}
+                        data={getFilteredData(projectsPendentes)}
+                        getRowClass={getRowClassInProgress}
+                        headerColor="#854d0e"
+                    />
+                );
+            case 'energisa':
+                return (
+                    <ProjectTable 
+                        title="PROJETOS ENVIAR ENERGISA"
+                        columns={columnsInProgress}
+                        data={getFilteredData(projectsEnviarEnergisa)}
+                        getRowClass={getRowClassInProgress}
+                        headerColor="#c2410c"
+                    />
+                );
+            case 'analise':
+                return (
+                    <ProjectTable 
+                        title="ANÁLISE DE CIRCUITO"
+                        columns={columnsAnalise}
+                        data={getFilteredData(projectsAnaliseCircuito)}
+                        headerColor="#5b21b6"
+                    />
+                );
+            case 'concluidos':
+                return (
+                    <ProjectTable 
+                        title="PROJETOS CONCLUÍDOS"
+                        columns={columnsConcluidos}
+                        data={getFilteredData(projectsConcluidos)}
+                        headerColor="#166534"
+                    />
+                );
+            default:
+                return null;
+        }
+    };
+
+    const getTabCount = (tabId) => {
+        switch (tabId) {
+            case 'elaboracao':
+            case 'andamento': // fallback
+                return getFilteredData(projectsEmAndamento).length;
+            case 'pendentes':
+                return getFilteredData(projectsPendentes).length;
+            case 'energisa':
+                return getFilteredData(projectsEnviarEnergisa).length;
+            case 'analise':
+                return getFilteredData(projectsAnaliseCircuito).length;
+            case 'concluidos':
+                return getFilteredData(projectsConcluidos).length;
+            default:
+                return 0;
+        }
+    };
 
     return (
         <div className="dashboard-container projects-view">
@@ -172,29 +355,40 @@ const Projects = () => {
             </div>
 
             <div className="dashboard-content">
-                {/* Instead of columns in a grid, we stack Tables vertically */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                    
-                    {/* TABLE 2: EM ANDAMENTO */}
-                    <ProjectTable 
-                        title="PROJETOS EM ANDAMENTO"
-                        columns={columnsInProgress}
-                        data={filteredInProgress}
-                        getRowClass={getRowClassInProgress}
-                    />
+                {/* Tabs Navigation */}
+                <div className="tabs-container">
+                    {level1Tabs.map((tab) => (
+                        <button
+                            key={tab.id}
+                            className={`tab-btn ${activeTab === tab.id ? 'tab-active' : ''}`}
+                            style={activeTab === tab.id ? { backgroundColor: tab.color } : {}}
+                            onClick={() => setActiveTab(tab.id)}
+                        >
+                            {tab.label} ({getTabCount(tab.id)})
+                        </button>
+                    ))}
+                </div>
 
-                    {/* TABLE 3: FINALIZADOS / ANÁLISE */}
-                    <ProjectTable 
-                        title="PROJETOS ANÁLISE DE CIRCUITO/OBRA"
-                        columns={columnsFinished}
-                        data={filteredFinished}
-                    />
+                <div className="tabs-container" style={{ marginTop: '-8px' }}>
+                    {level2Tabs.map((tab) => (
+                        <button
+                            key={tab.id}
+                            className={`tab-btn ${activeTab === tab.id ? 'tab-active' : ''}`}
+                            style={activeTab === tab.id ? { backgroundColor: tab.color } : {}}
+                            onClick={() => setActiveTab(tab.id)}
+                        >
+                            {tab.label} ({getTabCount(tab.id)})
+                        </button>
+                    ))}
+                </div>
 
+                {/* Tab Content */}
+                <div className="tab-content">
+                    {getTabContent()}
                 </div>
             </div>
         </div>
     );
 };
-
 
 export default Projects;

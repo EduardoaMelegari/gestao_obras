@@ -186,12 +186,23 @@ async function syncSheets() {
             let daysSinceDocConf = null;
 
             if (docConfDateStr) {
-                const parts = docConfDateStr.split('/');
+                // Try DD/MM/YYYY
+                let parts = docConfDateStr.split('/');
                 if (parts.length === 3) {
                     const cDate = new Date(parts[2], parts[1] - 1, parts[0]);
-                    const today = new Date();
-                    const diffTime = today - cDate;
-                    daysSinceDocConf = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                    if (!isNaN(cDate.getTime())) {
+                        const today = new Date();
+                        const diffTime = today - cDate;
+                        daysSinceDocConf = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                    }
+                } else {
+                    // Try YYYY-MM-DD or other standard formats
+                    const cDate = new Date(docConfDateStr);
+                    if (!isNaN(cDate.getTime())) {
+                        const today = new Date();
+                        const diffTime = today - cDate;
+                        daysSinceDocConf = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                    }
                 }
             }
 

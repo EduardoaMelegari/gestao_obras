@@ -1,12 +1,60 @@
 .projects-view .dashboard-content {
-    overflow-y: auto;
-    display: block; /* Flex column is fine, but block works well for simple scrolling */
-    padding-bottom: 40px; /* Space at bottom */
+    overflow: hidden; 
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+    padding-bottom: 24px;
+    gap: 16px;
+    background-color: #0a0a0a;
 }
 
-/* Ensure tables are fully visible */
-.projects-view .dashboard-content > div {
-    /* The flex container wrapping tables */
-    height: auto;
-    min-height: 100%;
+/* Tabs Container */
+.tabs-container {
+    display: flex;
+    gap: 4px;
+    background-color: #1a1a1a;
+    border: 1px solid #374151;
+    border-radius: 8px;
+    padding: 3px;
+    flex-shrink: 0;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 6px 10px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background-color: transparent;
+    color: #9ca3af;
+    white-space: nowrap;
+}
+
+.tab-btn:hover {
+    background-color: #374151;
+    color: #e5e7eb;
+}
+
+.tab-btn.tab-active {
+    color: white;
+    font-weight: 600;
+}
+
+/* Tab Content - Take remaining height to allow internal scroll */
+.tab-content {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Ensure tables fill the tab content area vertically */
+.tab-content > div {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
 }

@@ -2,28 +2,6 @@ import React from 'react';
 import './ProjectTable.css';
 
 const ProjectTable = ({ title, columns, data, getRowClass, emptyMessage = "Sem dados", headerColor = "#0B1B48" }) => {
-    // Basic pagination state (local for now, or lifted if needed)
-    const [currentPage, setCurrentPage] = React.useState(1);
-    const itemsPerPage = 20;
-
-    const totalPages = Math.ceil(data.length / itemsPerPage);
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const currentData = data.slice(startIndex, startIndex + itemsPerPage);
-
-    const handlePrev = () => {
-        if (currentPage > 1) setCurrentPage(p => p - 1);
-    };
-
-    const handleNext = () => {
-        if (currentPage < totalPages) setCurrentPage(p => p + 1);
-    };
-
-    // Reset page if data changes significantly
-    React.useEffect(() => {
-        if (currentPage > totalPages && totalPages > 0) {
-            setCurrentPage(1);
-        }
-    }, [data.length, totalPages, currentPage]);
 
     const handleExport = () => {
         if (!data || data.length === 0) return;
@@ -60,7 +38,9 @@ const ProjectTable = ({ title, columns, data, getRowClass, emptyMessage = "Sem d
     return (
         <div className="project-table-container">
             <div className="project-table-header" style={{ backgroundColor: headerColor }}>
-                <h3 className="project-table-title">{title}</h3>
+                <h3 className="project-table-title">
+                    {title} <span style={{ opacity: 0.7, marginLeft: '8px' }}>({data.length})</span>
+                </h3>
                 <button className="btn-export" onClick={handleExport} disabled={data.length === 0}>
                     Exportar CSV
                 </button>
@@ -80,22 +60,25 @@ const ProjectTable = ({ title, columns, data, getRowClass, emptyMessage = "Sem d
                             </tr>
                         </thead>
                         <tbody>
-                            {currentData.map((item, index) => {
-                                const globalIndex = startIndex + index + 1;
+                            {data.map((item, index) => {
+                                const globalIndex = index + 1;
                                 const rowClass = getRowClass ? getRowClass(item) : '';
                                 
                                 return (
                                     <tr key={item.id || index} className={rowClass}>
                                         <td className="col-index">{globalIndex}.</td>
-                                        {columns.map((col, colIndex) => (
-                                            <td key={colIndex}>
-                                                {col.render ? col.render(item) : (item[col.accessor] || '')}
-                                            </td>
-                                        ))}
+                                        {columns.map((col, colIndex) => {
+                                            const val = col.render ? col.render(item) : (item[col.accessor]);
+                                            return (
+                                                <td key={colIndex}>
+                                                    {val !== null && val !== undefined ? val : ''}
+                                                </td>
+                                            );
+                                        })}
                                     </tr>
                                 );
                             })}
-                            {currentData.length === 0 && (
+                            {data.length === 0 && (
                                 <tr>
                                     <td colSpan={columns.length + 1} className="empty-cell">
                                         {emptyMessage}
@@ -108,12 +91,8 @@ const ProjectTable = ({ title, columns, data, getRowClass, emptyMessage = "Sem d
 
                 <div className="table-footer">
                     <span className="page-info">
-                        {data.length > 0 ? `${startIndex + 1} - ${Math.min(startIndex + itemsPerPage, data.length)} / ${data.length}` : '0 / 0'}
+                        Total: {data.length}
                     </span>
-                    <div className="pagination-controls">
-                        <button onClick={handlePrev} disabled={currentPage === 1} className="page-btn">&lt;</button>
-                        <button onClick={handleNext} disabled={currentPage >= totalPages} className="page-btn">&gt;</button>
-                    </div>
                 </div>
             </div>
         </div>
