@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Header from './Header';
 import KPICard from './KPICard';
 import ProjectColumn from './ProjectColumn';
@@ -7,25 +7,26 @@ import { fetchDashboardData } from '../services/data';
 import './Dashboard.css';
 
 const Dashboard = () => {
-    const [kpiData, setKpiData] = React.useState(null);
-    const [projectData, setProjectData] = React.useState(null);
-    const [loading, setLoading] = React.useState(true);
+    const [kpiData, setKpiData] = useState(null);
+    const [projectData, setProjectData] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [lastSync, setLastSync] = useState(null);
 
     // City Filter State
-    const [cities, setCities] = React.useState([]);
-    const [selectedCities, setSelectedCities] = React.useState([]); 
+    const [cities, setCities] = useState([]);
+    const [selectedCities, setSelectedCities] = useState([]); 
     // Category Filter State
-    const [categories, setCategories] = React.useState([]);
-    const [selectedCategories, setSelectedCategories] = React.useState([]);
+    const [categories, setCategories] = useState([]);
+    const [selectedCategories, setSelectedCategories] = useState([]);
     // Seller Filter State
-    const [sellers, setSellers] = React.useState([]);
-    const [selectedSellers, setSelectedSellers] = React.useState([]);
+    const [sellers, setSellers] = useState([]);
+    const [selectedSellers, setSelectedSellers] = useState([]);
     // Search State
-    const [searchTerm, setSearchTerm] = React.useState('');
+    const [searchTerm, setSearchTerm] = useState('');
     // Days Filter State
-    const [daysFilter, setDaysFilter] = React.useState('');
+    const [daysFilter, setDaysFilter] = useState('');
 
-    const loadData = React.useCallback(async (citiesToFetch, categoriesToFetch, sellersToFetch, isBackground = false) => {
+    const loadData = useCallback(async (citiesToFetch, categoriesToFetch, sellersToFetch, isBackground = false) => {
         if (!isBackground) setLoading(true);
         try {
             const result = await fetchDashboardData(citiesToFetch, categoriesToFetch, sellersToFetch);
@@ -33,6 +34,7 @@ const Dashboard = () => {
             if (result) {
                 setKpiData(result.kpi);
                 setProjectData(result.projects);
+                if (result.lastSync) setLastSync(new Date(result.lastSync));
 
                 // Update available cities if provided
                 if (result.cities && result.cities.length > 0) {
@@ -68,7 +70,7 @@ const Dashboard = () => {
     }, []);
 
     // Initial Load & Auto-Refresh
-    React.useEffect(() => {
+    useEffect(() => {
         loadData(selectedCities, selectedCategories, selectedSellers); // Initial (shows loading)
 
         // Refresh UI every 10 seconds to catch new data (Silent)
@@ -187,6 +189,7 @@ const Dashboard = () => {
                             onChange={handleCityChange}
                             placeholder="Todas"
                         />
+                    </div>
                     <div className="city-selector">
                         <label htmlFor="seller-select">Filtrar por Vendedor:</label>
                         <MultiSelect
@@ -195,7 +198,6 @@ const Dashboard = () => {
                             onChange={handleSellerChange}
                             placeholder="Selecione Vendedores"
                         />
-                    </div>
                     </div>
                     <div className="city-selector">
                         <label htmlFor="category-select">Filtrar por Categoria:</label>
@@ -269,7 +271,7 @@ const Dashboard = () => {
             </div>
 
             <footer className="dashboard-footer">
-                <p>Data de última atualização: {new Date().toLocaleString()} | Política de Privacidade</p>
+                <p>Última sincronização com Google Sheets: {lastSync ? lastSync.toLocaleString('pt-BR') : 'aguardando...'}</p>
             </footer>
         </div>
     );

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Header from './Header';
 import ProjectTable from './ProjectTable';
 import MultiSelect from './MultiSelect';
@@ -15,7 +15,7 @@ const Projects = () => {
     });
     
     // Tab State
-    const [activeTab, setActiveTab] = useState('andamento');
+    const [activeTab, setActiveTab] = useState('elaboracao');
     const [protocoladosSubTab, setProtocoladosSubTab] = useState('clean'); // 'clean' or 'pendencias'
 
     // Filter State
@@ -28,12 +28,36 @@ const Projects = () => {
     
     const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    // Refs to control initial load and filter initialization
+    const isFirstLoad = useRef(true);
+    const hasInitializedFilters = useRef(false);
 
     const loadData = useCallback(async (citiesToFetch, categoriesToFetch, sellersToFetch, isBackground = false) => {
-        if (!isBackground) setLoading(true);
+        // Only show the full loading screen on the very first load
+        if (!isBackground && isFirstLoad.current) setLoading(true);
         try {
             const result = await fetchProjectData(citiesToFetch, categoriesToFetch, sellersToFetch);
             if (result) {
+                setError(null);
+                // Populate filter dropdowns
+                if (result.cities && result.cities.length > 0) setCities(result.cities);
+                if (result.sellers && result.sellers.length > 0) setSellers(result.sellers);
+                if (result.categories && result.categories.length > 0) setCategories(result.categories);
+
+                // On first load: pre-select all cities except Matupá, then re-fetch with that filter
+                if (!hasInitializedFilters.current && result.cities && result.cities.length > 0) {
+                    hasInitializedFilters.current = true;
+                    const withoutMatupa = result.cities.filter(c =>
+                        c.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase() !== 'MATUPA'
+                    );
+                    setSelectedCities(withoutMatupa);
+                    // useEffect will re-trigger loadData with the correct filter
+                    if (!isBackground) { setLoading(false); isFirstLoad.current = false; }
+                    return;
+                }
+
                 if (result.sections) {
                     // Sort each section by a stable key to prevent rows from jumping on refresh
                     const stableSort = (arr) => [...arr].sort((a, b) => {
@@ -53,24 +77,14 @@ const Projects = () => {
             }
         } catch (err) {
             console.error(err);
+            if (!isBackground) setError('Erro ao carregar dados. Verifique a conexão com o servidor.');
         } finally {
-            if (!isBackground) setLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        const fetchFilters = async () => {
-            try {
-                const response = await fetch('/api/dashboard');
-                const data = await response.json();
-                if (data.cities) setCities(data.cities);
-                if (data.categories) setCategories(data.categories);
-                if (data.sellers) setSellers(data.sellers);
-            } catch (err) {
-                console.error("Failed to fetch filter options", err);
+            // Clear loading screen only after the true first data load
+            if (!isBackground && isFirstLoad.current) {
+                setLoading(false);
+                isFirstLoad.current = false;
             }
-        };
-        fetchFilters();
+        }
     }, []);
 
     useEffect(() => {
@@ -444,6 +458,14 @@ const Projects = () => {
 
     return (
         <div className="dashboard-container projects-view">
+            {loading && (
+                <div className="loading-screen">Carregando dados...</div>
+            )}
+            {!loading && error && (
+                <div className="error-screen">{error}</div>
+            )}
+            {!loading && !error && (
+            <>
             <div className="top-bar">
                 <Header title="GESTÃO DE PROJETOS" />
 
@@ -515,6 +537,8 @@ const Projects = () => {
                     {getTabContent()}
                 </div>
             </div>
+            </>
+            )}
         </div>
     );
 };

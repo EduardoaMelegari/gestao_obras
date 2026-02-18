@@ -2,6 +2,33 @@ import axios from 'axios';
 import Papa from 'papaparse';
 import Project from './models/Project.js';
 import COLUMN_CONFIG from './column-config.js';
+import { sequelize } from './db.js';
+
+// ---------------------------------------------------------------------------
+// Date utilities
+// ---------------------------------------------------------------------------
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+/** Parse a date string in DD/MM/YYYY or any JS-parseable format. Returns null if invalid. */
+function parseDateStr(str) {
+    if (!str) return null;
+    if (str.includes('/')) {
+        const parts = str.split('/');
+        if (parts.length === 3) {
+            const d = new Date(parts[2], parts[1] - 1, parts[0]);
+            return isNaN(d.getTime()) ? null : d;
+        }
+    }
+    const d = new Date(str);
+    return isNaN(d.getTime()) ? null : d;
+}
+
+/** Returns whole days elapsed since the given date string (positive = past). Returns null if unparseable. */
+function daysSince(dateStr) {
+    const date = parseDateStr(dateStr);
+    if (!date) return null;
+    return Math.floor((Date.now() - date.getTime()) / MS_PER_DAY);
+}
 
 const SHEETS_CONFIG = [
     {
@@ -38,6 +65,11 @@ const SHEETS_CONFIG = [
     {
         url: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTNNo3D9oIrM5zgIwMO13jNrxfom0AjKDxAQo52nNDDf4UV0xgs5uDBS1BKReo-9h4Nc74t-2JfZNk_/pub?gid=99118266&single=true&output=csv',
         city: 'SINOP',
+        type: 'PROJECT'
+    },
+    {
+        url: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR7xtQIZa-2ihoUiMoCl1SlIcIGrWJoO-mGCgvBaHUVe4VG-hBbgEIoBEc9pYPf_segqcdKqzhEW8ga/pub?gid=1182505943&single=true&output=csv',
+        city: 'MATUPÁ',
         type: 'PROJECT'
     }
 ];
@@ -165,81 +197,23 @@ async function syncSheets() {
 
             // Calculate days since payment for GENERATE_OS
             if (status === 'GENERATE_OS') {
-                const dataPagamentoStr = getData('DATA PAGAMENTO');
-                if (dataPagamentoStr) {
-                    const parts = dataPagamentoStr.split('/');
-                    if (parts.length === 3) {
-                        const pDate = new Date(parts[2], parts[1] - 1, parts[0]);
-                        const today = new Date();
-                        const diffTime = today - pDate;
-                        days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                    }
-                }
+                days = daysSince(getData('DATA PAGAMENTO')) ?? days;
             }
 
             // Vistoria Date & Status
             const vistoriaStatus = getData('STATUS VISTORIA');
             const vistoriaDateStr = getData('DATA SOLITAÇÃO VISTORIA');
 
-            // Doc Conference Date Calculation
+            // Doc Conference & Protocol date calculations use the shared helper
             const docConfDateStr = getData('DATA FINALIZAÇÃO CONF.');
-            let daysSinceDocConf = null;
+            const daysSinceDocConf = daysSince(docConfDateStr);
 
-            if (docConfDateStr) {
-                // Try DD/MM/YYYY
-                let parts = docConfDateStr.split('/');
-                if (parts.length === 3) {
-                    const cDate = new Date(parts[2], parts[1] - 1, parts[0]);
-                    if (!isNaN(cDate.getTime())) {
-                        const today = new Date();
-                        const diffTime = today - cDate;
-                        daysSinceDocConf = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-                    }
-                } else {
-                    // Try YYYY-MM-DD or other standard formats
-                    const cDate = new Date(docConfDateStr);
-                    if (!isNaN(cDate.getTime())) {
-                        const today = new Date();
-                        const diffTime = today - cDate;
-                        daysSinceDocConf = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-                    }
-                }
-            }
-
-            // Protocol Date Calculation
             const protocolDateStr = getData('DATA PROTOCOLO');
-            let daysSinceProtocol = null;
+            const daysSinceProtocol = daysSince(protocolDateStr);
 
-            if (protocolDateStr) {
-                let parts = protocolDateStr.split('/');
-                if (parts.length === 3) {
-                    const cDate = new Date(parts[2], parts[1] - 1, parts[0]);
-                    if (!isNaN(cDate.getTime())) {
-                        const today = new Date();
-                        const diffTime = today - cDate;
-                        daysSinceProtocol = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-                    }
-                } else {
-                     const cDate = new Date(protocolDateStr);
-                     if (!isNaN(cDate.getTime())) {
-                         const today = new Date();
-                         const diffTime = today - cDate;
-                         daysSinceProtocol = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-                     }
-                }
-            }
-
-            // Calculate days for Vistoria if active (status is already determined above)
+            // Calculate days for Vistoria if active (TODAY - DATA SOLITAÇÃO VISTORIA)
             if (status === 'COMPLETED' && vistoriaDateStr) {
-                const parts = vistoriaDateStr.split('/');
-                if (parts.length === 3) {
-                    // DD/MM/YYYY
-                    const vDate = new Date(parts[2], parts[1] - 1, parts[0]);
-                    const today = new Date();
-                    // User requested formula: TODAY - DATA SOLITAÇÃO VISTORIA
-                    const diffTime = today - vDate;
-                    days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                }
+                days = daysSince(vistoriaDateStr) ?? days;
             }
 
             return {
@@ -276,10 +250,17 @@ async function syncSheets() {
     }
 
     if (allProjects.length > 0) {
-        // Critical: Only wipe DB once we have the new data ready
-        await Project.destroy({ where: {}, truncate: true });
-
-        await Project.bulkCreate(allProjects);
+        // Use a transaction so that if bulkCreate fails, the data is NOT lost
+        const t = await sequelize.transaction();
+        try {
+            await Project.destroy({ where: {}, truncate: true, transaction: t });
+            await Project.bulkCreate(allProjects, { transaction: t });
+            await t.commit();
+        } catch (err) {
+            await t.rollback();
+            console.error('[sync] Transaction rolled back, database preserved:', err.message);
+            throw err;
+        }
     }
 }
 

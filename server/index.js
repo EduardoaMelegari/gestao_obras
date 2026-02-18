@@ -10,41 +10,33 @@ const PORT = process.env.PORT || 36006;
 app.use(cors());
 app.use(express.json());
 
+// ---------------------------------------------------------------------------
+// Helper: build a Sequelize WHERE clause from multi-value query string params
+// Supports ?city=A,B or ?city=A&city=B patterns.
+// ---------------------------------------------------------------------------
+function buildFilterClause(query, fields = ['city', 'category', 'seller']) {
+    const where = {};
+    for (const field of fields) {
+        const val = query[field];
+        if (!val) continue;
+        if (Array.isArray(val)) {
+            where[field] = { [Op.in]: val };
+        } else if (val.includes(',')) {
+            where[field] = { [Op.in]: val.split(',') };
+        } else {
+            where[field] = val;
+        }
+    }
+    return where;
+}
+
+// Tracks the timestamp of the last successful Google Sheets → DB sync
+let lastSuccessfulSync = null;
+
 // API Routes
 app.get('/api/dashboard', async (req, res) => {
     try {
-        const { city, category, seller } = req.query;
-        const whereClause = {};
-
-        if (city) {
-            if (Array.isArray(city)) {
-                whereClause.city = { [Op.in]: city };
-            } else if (typeof city === 'string' && city.includes(',')) {
-                whereClause.city = { [Op.in]: city.split(',') };
-            } else {
-                whereClause.city = city;
-            }
-        }
-
-        if (category) {
-            if (Array.isArray(category)) {
-                whereClause.category = { [Op.in]: category };
-            } else if (typeof category === 'string' && category.includes(',')) {
-                whereClause.category = { [Op.in]: category.split(',') };
-            } else {
-                whereClause.category = category;
-            }
-        }
-
-        if (seller) {
-            if (Array.isArray(seller)) {
-                whereClause.seller = { [Op.in]: seller };
-            } else if (typeof seller === 'string' && seller.includes(',')) {
-                whereClause.seller = { [Op.in]: seller.split(',') };
-            } else {
-                whereClause.seller = seller;
-            }
-        }
+        const whereClause = buildFilterClause(req.query);
 
         // Fetch Data with optional filter
         const queryOptions = {
@@ -137,7 +129,9 @@ app.get('/api/dashboard', async (req, res) => {
         const data = {
             cities,
             categories,
+            sellers,
             kpi,
+            lastSync: lastSuccessfulSync,
             projects: {
                 generate_os: generateOS,
                 priority: priorities,
@@ -171,42 +165,13 @@ app.post('/api/sync', async (req, res) => {
 
 app.get('/api/projects', async (req, res) => {
     try {
-        const { city, seller, category } = req.query;
-        const whereClause = {};
-
-        if (city) {
-            if (Array.isArray(city)) {
-                whereClause.city = { [Op.in]: city };
-            } else if (typeof city === 'string' && city.includes(',')) {
-                whereClause.city = { [Op.in]: city.split(',') };
-            } else {
-                whereClause.city = city;
-            }
-        }
-
-        if (seller) {
-            if (Array.isArray(seller)) {
-                whereClause.seller = { [Op.in]: seller };
-            } else if (typeof seller === 'string' && seller.includes(',')) {
-                whereClause.seller = { [Op.in]: seller.split(',') };
-            } else {
-                whereClause.seller = seller;
-            }
-        }
-
-        if (category) {
-            if (Array.isArray(category)) {
-                whereClause.category = { [Op.in]: category };
-            } else if (typeof category === 'string' && category.includes(',')) {
-                whereClause.category = { [Op.in]: category.split(',') };
-            } else {
-                whereClause.category = category;
-            }
-        }
+        const whereClause = buildFilterClause(req.query);
 
         // Expanded logic: Include 'PROJECT' status OR active pipeline statuses
+        // Also include DELIVERED and COMPLETED so cities like Matupá (installation-only sheets)
+        // are not filtered out — deduplication below handles any overlap with PROJECT entries.
         whereClause.status = {
-            [Op.in]: ['PROJECT', 'GENERATE_OS', 'PRIORITY', 'IN_EXECUTION', 'TO_DELIVER']
+            [Op.in]: ['PROJECT', 'GENERATE_OS', 'PRIORITY', 'IN_EXECUTION', 'TO_DELIVER', 'DELIVERED', 'COMPLETED']
         }
 
         const allProjects = await Project.findAll({
@@ -281,8 +246,18 @@ app.get('/api/projects', async (req, res) => {
             group1.push(p);
         });
 
+        // Fetch filter lists to avoid a second /api/dashboard round-trip from the client
+        const [allCities, allSellers, allCategories] = await Promise.all([
+            Project.findAll({ attributes: [[sequelize.fn('DISTINCT', sequelize.col('city')), 'city']] }),
+            Project.findAll({ attributes: [[sequelize.fn('DISTINCT', sequelize.col('seller')), 'seller']] }),
+            Project.findAll({ attributes: [[sequelize.fn('DISTINCT', sequelize.col('category')), 'category']] }),
+        ]);
+
         res.json({
-            lastSync: new Date(),
+            lastSync: lastSuccessfulSync,
+            cities: allCities.map(c => c.city).filter(Boolean).sort(),
+            sellers: allSellers.map(s => s.seller).filter(Boolean).sort(),
+            categories: allCategories.map(c => c.category).filter(Boolean).sort(),
             kpi: {
                 new: { count: group1.length, title: 'NOVOS PROJETOS', color: '#007bff' },
                 inProgress: { count: group2.length, title: 'EM ANDAMENTO', color: '#ffc107' },
@@ -308,11 +283,18 @@ async function start() {
         console.log('Database synced');
 
         // Initial Data Load
-        syncSheets().catch(err => console.error('Initial sync failed:', err));
+        syncSheets()
+            .then(() => { lastSuccessfulSync = new Date(); })
+            .catch(err => console.error('Initial sync failed:', err));
 
         // Auto-Sync every 10 seconds
         setInterval(async () => {
-            await syncSheets();
+            try {
+                await syncSheets();
+                lastSuccessfulSync = new Date();
+            } catch (err) {
+                console.error('Auto-sync failed:', err);
+            }
         }, 10 * 1000);
 
         app.listen(PORT, '0.0.0.0', () => {

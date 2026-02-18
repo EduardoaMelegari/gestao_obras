@@ -6,11 +6,24 @@ const ProjectTable = ({ title, columns, data, getRowClass, emptyMessage = "Sem d
     const handleExport = () => {
         if (!data || data.length === 0) return;
 
+        // Safely resolve a cell value for CSV: if render() returns a React element, fall back to the raw accessor value
+        const resolveCellValue = (col, item) => {
+            if (col.render) {
+                const rendered = col.render(item);
+                // React elements (objects with $$typeof) cannot be serialised — use raw accessor value instead
+                if (rendered !== null && typeof rendered === 'object' && rendered.$$typeof) {
+                    return item[col.accessor] ?? '';
+                }
+                return rendered ?? '';
+            }
+            return item[col.accessor] ?? '';
+        };
+
         // Create CSV Content
         const headers = columns.map(c => c.header).join(';');
         const rows = data.map(item => {
             return columns.map(col => {
-                let cellData = col.render ? col.render(item) : (item[col.accessor] || '');
+                let cellData = resolveCellValue(col, item);
                  // Escape newlines and semicolons if needed
                  if (typeof cellData === 'string') {
                     cellData = cellData.replace(/;/g, ',').replace(/\n/g, ' ');
