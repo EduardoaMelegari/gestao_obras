@@ -14,9 +14,18 @@ const Projects = () => {
         finished: { count: 0, title: 'FINALIZADOS', color: '#28a745' }
     });
     
+    // View State: 'normal' | 'ampliacao'
+    const [activeView, setActiveView] = useState('normal');
+
     // Tab State
     const [activeTab, setActiveTab] = useState('elaboracao');
     const [protocoladosSubTab, setProtocoladosSubTab] = useState('clean'); // 'clean' or 'pendencias'
+
+    const handleViewChange = (view) => {
+        setActiveView(view);
+        if (view === 'ampliacao') setActiveTab('amp_elaboracao');
+        else setActiveTab('elaboracao');
+    };
 
     // Filter State
     const [cities, setCities] = useState([]);
@@ -162,6 +171,42 @@ const Projects = () => {
     const projectsProtocoladosPendencias = projectsProtocoladosFiltered.filter(p => p.details && p.details.trim()).sort((a, b) => (b.days_since_protocol || 0) - (a.days_since_protocol || 0));
 
     const projectsConcluidos = allFinished;
+
+    // --- Ampliação ---
+    const allProjectsPool = [...allNew, ...allInProgress, ...allFinished];
+    const isAmpliacaoCategory = (p) => (p.category || '').toUpperCase().includes('AMPLIA');
+
+    const ampliacao_emElaboracao = allProjectsPool.filter(p => {
+        if (!isAmpliacaoCategory(p)) return false;
+        const status = (p.project_status || '').toLowerCase();
+        // Em Elaboração: apenas não iniciado, andamento e atrasado (sem falta art)
+        return status.includes('não iniciado') || status.includes('nao iniciado') || status.includes('andamento') || status.includes('atrasado');
+    }).sort((a, b) => (b.days_since_doc_conf || 0) - (a.days_since_doc_conf || 0));
+
+    const ampliacao_pendentes = allProjectsPool.filter(p => {
+        if (!isAmpliacaoCategory(p)) return false;
+        const status = (p.project_status || '').toLowerCase();
+        return status.includes('falta art');
+    }).sort((a, b) => (b.days_since_doc_conf || 0) - (a.days_since_doc_conf || 0));
+
+    const ampliacao_energisa = allProjectsPool.filter(p => {
+        if (!isAmpliacaoCategory(p)) return false;
+        const status = (p.project_status || '').toLowerCase();
+        const obs = (p.details || '').toLowerCase();
+        return status.includes('mandar') && obs.includes('sm');
+    }).sort((a, b) => (b.days_since_doc_conf || 0) - (a.days_since_doc_conf || 0));
+
+    const ampliacao_protocolados = allProjectsPool.filter(p => {
+        if (!isAmpliacaoCategory(p)) return false;
+        const status = (p.project_status || '').toLowerCase().trim();
+        return status === 'protocolado';
+    }).sort((a, b) => (b.days_since_protocol || 0) - (a.days_since_protocol || 0));
+
+    const ampliacao_concluidos = allProjectsPool.filter(p => {
+        if (!isAmpliacaoCategory(p)) return false;
+        const status = (p.project_status || '').toLowerCase().trim();
+        return status === 'finalizado';
+    });
 
     // Using filteredFinished (which comes from finished section)
     const projectsAnaliseCircuito = [...allNew, ...allInProgress, ...allFinished].filter(p => {
@@ -325,6 +370,14 @@ const Projects = () => {
         { id: 'concluidos', label: 'Projetos Concluídos', color: '#22c55e' },
     ];
 
+    const ampliacaoTabs = [
+        { id: 'amp_elaboracao', label: 'Ampliação - Em Elaboração', color: '#d97706' },
+        { id: 'amp_pendentes', label: 'Ampliação - Pendentes (ART)', color: '#ca8a04' },
+        { id: 'amp_energisa', label: 'Ampliação - Enviar Energisa', color: '#ea580c' },
+        { id: 'amp_protocolados', label: 'Ampliação - Protocolados', color: '#b45309' },
+        { id: 'amp_concluidos', label: 'Ampliação - Concluídos', color: '#78350f' },
+    ];
+
     const getTabContent = () => {
         switch (activeTab) {
             case 'elaboracao':
@@ -431,6 +484,55 @@ const Projects = () => {
                         headerColor="#166534"
                     />
                 );
+            case 'amp_elaboracao':
+                return (
+                    <ProjectTable
+                        title="AMPLIAÇÃO - EM ELABORAÇÃO"
+                        columns={columnsInProgress}
+                        data={getFilteredData(ampliacao_emElaboracao)}
+                        getRowClass={getRowClassInProgress}
+                        headerColor="#92400e"
+                    />
+                );
+            case 'amp_pendentes':
+                return (
+                    <ProjectTable
+                        title="AMPLIAÇÃO - PENDENTES (FALTA ART)"
+                        columns={columnsInProgress}
+                        data={getFilteredData(ampliacao_pendentes)}
+                        getRowClass={getRowClassInProgress}
+                        headerColor="#854d0e"
+                    />
+                );
+            case 'amp_energisa':
+                return (
+                    <ProjectTable
+                        title="AMPLIAÇÃO - ENVIAR ENERGISA"
+                        columns={columnsInProgress}
+                        data={getFilteredData(ampliacao_energisa)}
+                        getRowClass={getRowClassInProgress}
+                        headerColor="#c2410c"
+                    />
+                );
+            case 'amp_protocolados':
+                return (
+                    <ProjectTable
+                        title="AMPLIAÇÃO - PROTOCOLADOS"
+                        columns={columnsProtocolados}
+                        data={getFilteredData(ampliacao_protocolados)}
+                        getRowClass={getRowClassInProgress}
+                        headerColor="#78350f"
+                    />
+                );
+            case 'amp_concluidos':
+                return (
+                    <ProjectTable
+                        title="AMPLIAÇÃO - CONCLUÍDOS"
+                        columns={columnsConcluidos}
+                        data={getFilteredData(ampliacao_concluidos)}
+                        headerColor="#451a03"
+                    />
+                );
             default:
                 return null;
         }
@@ -451,6 +553,16 @@ const Projects = () => {
                 return getFilteredData(projectsAnaliseCircuito).length;
             case 'concluidos':
                 return getFilteredData(projectsConcluidos).length;
+            case 'amp_elaboracao':
+                return getFilteredData(ampliacao_emElaboracao).length;
+            case 'amp_pendentes':
+                return getFilteredData(ampliacao_pendentes).length;
+            case 'amp_energisa':
+                return getFilteredData(ampliacao_energisa).length;
+            case 'amp_protocolados':
+                return getFilteredData(ampliacao_protocolados).length;
+            case 'amp_concluidos':
+                return getFilteredData(ampliacao_concluidos).length;
             default:
                 return 0;
         }
@@ -505,32 +617,88 @@ const Projects = () => {
             </div>
 
             <div className="dashboard-content">
-                {/* Tabs Navigation */}
-                <div className="tabs-container">
-                    {level1Tabs.map((tab) => (
-                        <button
-                            key={tab.id}
-                            className={`tab-btn ${activeTab === tab.id ? 'tab-active' : ''}`}
-                            style={activeTab === tab.id ? { backgroundColor: tab.color } : {}}
-                            onClick={() => setActiveTab(tab.id)}
-                        >
-                            {tab.label} ({getTabCount(tab.id)})
-                        </button>
-                    ))}
+                {/* View Toggle */}
+                <div style={{ display: 'flex', gap: '0', marginBottom: '14px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #334155', alignSelf: 'flex-start', width: 'fit-content' }}>
+                    <button
+                        onClick={() => handleViewChange('normal')}
+                        style={{
+                            padding: '8px 22px',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontWeight: 'bold',
+                            fontSize: '13px',
+                            letterSpacing: '0.04em',
+                            backgroundColor: activeView === 'normal' ? '#3b82f6' : '#1e293b',
+                            color: activeView === 'normal' ? '#fff' : '#94a3b8',
+                            transition: 'background-color 0.2s',
+                        }}
+                    >
+                        Projetos
+                    </button>
+                    <button
+                        onClick={() => handleViewChange('ampliacao')}
+                        style={{
+                            padding: '8px 22px',
+                            border: 'none',
+                            borderLeft: '1px solid #334155',
+                            cursor: 'pointer',
+                            fontWeight: 'bold',
+                            fontSize: '13px',
+                            letterSpacing: '0.04em',
+                            backgroundColor: activeView === 'ampliacao' ? '#d97706' : '#1e293b',
+                            color: activeView === 'ampliacao' ? '#fff' : '#94a3b8',
+                            transition: 'background-color 0.2s',
+                        }}
+                    >
+                        Ampliações
+                    </button>
                 </div>
 
-                <div className="tabs-container" style={{ marginTop: '-8px' }}>
-                    {level2Tabs.map((tab) => (
-                        <button
-                            key={tab.id}
-                            className={`tab-btn ${activeTab === tab.id ? 'tab-active' : ''}`}
-                            style={activeTab === tab.id ? { backgroundColor: tab.color } : {}}
-                            onClick={() => setActiveTab(tab.id)}
-                        >
-                            {tab.label} ({getTabCount(tab.id)})
-                        </button>
-                    ))}
-                </div>
+                {/* Projetos Normais - Tabs */}
+                {activeView === 'normal' && (
+                    <>
+                        <div className="tabs-container">
+                            {level1Tabs.map((tab) => (
+                                <button
+                                    key={tab.id}
+                                    className={`tab-btn ${activeTab === tab.id ? 'tab-active' : ''}`}
+                                    style={activeTab === tab.id ? { backgroundColor: tab.color } : {}}
+                                    onClick={() => setActiveTab(tab.id)}
+                                >
+                                    {tab.label} ({getTabCount(tab.id)})
+                                </button>
+                            ))}
+                        </div>
+                        <div className="tabs-container" style={{ marginTop: '-8px' }}>
+                            {level2Tabs.map((tab) => (
+                                <button
+                                    key={tab.id}
+                                    className={`tab-btn ${activeTab === tab.id ? 'tab-active' : ''}`}
+                                    style={activeTab === tab.id ? { backgroundColor: tab.color } : {}}
+                                    onClick={() => setActiveTab(tab.id)}
+                                >
+                                    {tab.label} ({getTabCount(tab.id)})
+                                </button>
+                            ))}
+                        </div>
+                    </>
+                )}
+
+                {/* Ampliação - Tabs */}
+                {activeView === 'ampliacao' && (
+                    <div className="tabs-container">
+                        {ampliacaoTabs.map((tab) => (
+                            <button
+                                key={tab.id}
+                                className={`tab-btn ${activeTab === tab.id ? 'tab-active' : ''}`}
+                                style={activeTab === tab.id ? { backgroundColor: tab.color } : { borderColor: '#92400e' }}
+                                onClick={() => setActiveTab(tab.id)}
+                            >
+                                {tab.label} ({getTabCount(tab.id)})
+                            </button>
+                        ))}
+                    </div>
+                )}
 
                 {/* Tab Content */}
                 <div className="tab-content">

@@ -218,6 +218,14 @@ app.get('/api/projects', async (req, res) => {
             const status = (p.project_status || '').trim().toUpperCase();
             const category = (p.category || '').trim().toUpperCase();
 
+            // Ampliação: send ALL to group1 regardless of project_status so
+            // none are silently dropped. The front-end allProjectsPool distributes
+            // them by project_status into the correct Ampliação sub-tab.
+            if (category.includes('AMPLIA')) {
+                group1.push(p);
+                return;
+            }
+
             // 1. Finished
             if (status === 'FINALIZADO') {
                 group3.push(p);
@@ -228,8 +236,7 @@ app.get('/api/projects', async (req, res) => {
             if (allowedInProgress.includes(status)) {
                 // Exclude specific categories or types
                 const isExcluded = 
-                    category.includes('SEM PROJETO') || 
-                    category.includes('AMPLIA') ||
+                    category.includes('SEM PROJETO') ||
                     (p.details && (
                         p.details.toUpperCase().includes('AMPLIAÇÃO') ||
                         p.details.toUpperCase().includes('EM ESPERA')
