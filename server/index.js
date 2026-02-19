@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { sequelize, Op } from './db.js';
 import Project from './models/Project.js';
+import AccessLog from './models/AccessLog.js';
 import syncSheets from './sync-sheets.js';
 import https from 'https';
 
@@ -63,6 +64,15 @@ function fetchGeo(ip) {
     });
 }
 
+function parseBrowser(ua = '') {
+    if (ua.includes('Edg/') || ua.includes('Edge/')) return 'Edge';
+    if (ua.includes('Chrome')) return 'Chrome';
+    if (ua.includes('Firefox')) return 'Firefox';
+    if (ua.includes('Safari')) return 'Safari';
+    if (ua.includes('OPR') || ua.includes('Opera')) return 'Opera';
+    return 'Outro';
+}
+
 // Ping endpoint — clients call this every 30s
 app.post('/api/ping', async (req, res) => {
     const { sessionId } = req.body;
@@ -77,12 +87,28 @@ app.post('/api/ping', async (req, res) => {
         session.lastSeen = now;
         session.ip = ip;
     } else {
-        // New session — fetch geo async
+        // New session — fetch geo async, then persist to AccessLog
         const session = { ip, geo: null, lastSeen: now, userAgent, connectedAt: now };
         activeSessions.set(sessionId, session);
-        fetchGeo(ip).then(geo => {
+        fetchGeo(ip).then(async (geo) => {
             if (activeSessions.has(sessionId)) {
                 activeSessions.get(sessionId).geo = geo;
+            }
+            try {
+                await AccessLog.create({
+                    sessionId,
+                    ip,
+                    city: geo.city,
+                    region: geo.region,
+                    country: geo.country,
+                    lat: geo.lat,
+                    lon: geo.lon,
+                    userAgent,
+                    browser: parseBrowser(userAgent),
+                    accessedAt: now,
+                });
+            } catch (e) {
+                console.error('[AccessLog] Failed to persist:', e.message);
             }
         });
     }
@@ -136,9 +162,31 @@ app.get('/api/admin/stats', async (req, res) => {
             Promise.resolve(lastSuccessfulSync)
         ]);
 
+        // Access log history + total count
+        const [totalAccesses, accessHistory] = await Promise.all([
+            AccessLog.count(),
+            AccessLog.findAll({
+                order: [['accessedAt', 'DESC']],
+                limit: 200,
+            }),
+        ]);
+
         res.json({
             activeUsers: sessions.length,
             sessions,
+            totalAccesses,
+            accessHistory: accessHistory.map(a => ({
+                id: a.id,
+                ip: a.ip,
+                city: a.city,
+                region: a.region,
+                country: a.country,
+                lat: a.lat,
+                lon: a.lon,
+                browser: a.browser,
+                userAgent: a.userAgent,
+                accessedAt: a.accessedAt,
+            })),
             kpi: {
                 totalProjects,
                 byCity: byCity.map(r => ({ label: r.city, count: parseInt(r.get('count')) })),

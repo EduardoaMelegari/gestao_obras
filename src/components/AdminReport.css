@@ -89,6 +89,7 @@
 .admin-kpi-card.accent-yellow { border-top-color: #eab308; }
 .admin-kpi-card.accent-orange { border-top-color: #f97316; }
 .admin-kpi-card.accent-emerald { border-top-color: #10b981; }
+.admin-kpi-card.accent-purple { border-top-color: #a855f7; }
 .admin-kpi-value {
     font-size: 36px;
     font-weight: 700;
@@ -150,6 +151,9 @@
 .admin-table tbody tr:hover { background: #1e293b44; }
 .admin-table tbody tr:last-child td { border-bottom: none; }
 .admin-cell-green { color: #4ade80; font-weight: 600; }
+.admin-cell-date { color: #a5b4fc; font-size: 12px; white-space: nowrap; }
+.admin-cell-muted { color: #475569; font-size: 12px; }
+.admin-cell-ua { color: #475569; font-size: 11px; max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
 .admin-table code {
     background: #1e293b;
     padding: 2px 6px;

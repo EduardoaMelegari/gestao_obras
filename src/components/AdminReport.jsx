@@ -24,11 +24,26 @@ function formatTime(dateStr) {
     return new Date(dateStr).toLocaleTimeString('pt-BR');
 }
 
+function formatDateTime(dateStr) {
+    if (!dateStr) return '-';
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR');
+}
+
+function browserIcon(browser = '') {
+    if (browser.includes('Edge')) return '🔵';
+    if (browser.includes('Chrome')) return '🌐';
+    if (browser.includes('Firefox')) return '🦊';
+    if (browser.includes('Safari')) return '🍎';
+    if (browser.includes('Opera')) return '🎭';
+    return '🖥️';
+}
+
 function parseUA(ua = '') {
+    if (ua.includes('Edg/') || ua.includes('Edge/')) return '🔵 Edge';
     if (ua.includes('Chrome')) return '🌐 Chrome';
     if (ua.includes('Firefox')) return '🦊 Firefox';
     if (ua.includes('Safari')) return '🍎 Safari';
-    if (ua.includes('Edge')) return '🔵 Edge';
     return '🖥️ Outro';
 }
 
@@ -72,7 +87,7 @@ const AdminReport = () => {
         </div>
     );
 
-    const { activeUsers, sessions, kpi, lastSync, serverTime } = stats;
+    const { activeUsers, sessions, totalAccesses, accessHistory, kpi, lastSync, serverTime } = stats;
 
     return (
         <div className="admin-container">
@@ -103,6 +118,10 @@ const AdminReport = () => {
                                 <span key={i} className="admin-dot" />
                             ))}
                         </div>
+                    </div>
+                    <div className="admin-kpi-card accent-purple">
+                        <div className="admin-kpi-value">{totalAccesses ?? 0}</div>
+                        <div className="admin-kpi-label">Total de Acessos</div>
                     </div>
                     <div className="admin-kpi-card accent-blue">
                         <div className="admin-kpi-value">{kpi.totalProjects}</div>
@@ -225,6 +244,53 @@ const AdminReport = () => {
                         </div>
                     ))}
                 </div>
+            </div>
+
+            {/* Access History */}
+            <div className="admin-section">
+                <h2 className="admin-section-title">📋 Histórico de Acessos — Últimos {(accessHistory || []).length}</h2>
+                {!accessHistory || accessHistory.length === 0 ? (
+                    <div className="admin-empty">Nenhum acesso registrado ainda.</div>
+                ) : (
+                    <div className="admin-table-wrap">
+                        <table className="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>📅 Data e Hora</th>
+                                    <th>IP</th>
+                                    <th>🌆 Cidade</th>
+                                    <th>📍 Estado</th>
+                                    <th>🌐 País</th>
+                                    <th>🗺️ Localização</th>
+                                    <th>🖥️ Navegador</th>
+                                    <th>User Agent</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {accessHistory.map((a, i) => (
+                                    <tr key={a.id}>
+                                        <td className="admin-cell-muted">{(accessHistory.length - i)}</td>
+                                        <td className="admin-cell-date">{formatDateTime(a.accessedAt)}</td>
+                                        <td><code>{a.ip}</code></td>
+                                        <td>{a.city || '-'}</td>
+                                        <td>{a.region || '-'}</td>
+                                        <td>{a.country || '-'}</td>
+                                        <td>
+                                            {a.lat && a.lon
+                                                ? <a href={`https://maps.google.com/?q=${a.lat},${a.lon}`} target="_blank" rel="noreferrer" className="admin-map-link">
+                                                    {Number(a.lat).toFixed(2)}, {Number(a.lon).toFixed(2)}
+                                                  </a>
+                                                : '-'}
+                                        </td>
+                                        <td>{browserIcon(a.browser)} {a.browser || '-'}</td>
+                                        <td className="admin-cell-ua" title={a.userAgent}>{a.userAgent ? a.userAgent.slice(0, 60) + (a.userAgent.length > 60 ? '…' : '') : '-'}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </div>
 
             <div className="admin-footer">
