@@ -3,12 +3,142 @@ import cors from 'cors';
 import { sequelize, Op } from './db.js';
 import Project from './models/Project.js';
 import syncSheets from './sync-sheets.js';
+import https from 'https';
 
 const app = express();
 const PORT = process.env.PORT || 36006;
 
 app.use(cors());
 app.use(express.json());
+
+// ---------------------------------------------------------------------------
+// Active user session tracking
+// ---------------------------------------------------------------------------
+const activeSessions = new Map(); // sessionId -> { ip, geo, lastSeen, userAgent }
+const SESSION_TIMEOUT_MS = 90 * 1000; // 90 seconds without ping = inactive
+
+function getClientIp(req) {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (forwarded) return forwarded.split(',')[0].trim();
+    return req.socket?.remoteAddress || req.ip || 'unknown';
+}
+
+function fetchGeo(ip) {
+    return new Promise((resolve) => {
+        // Skip private/loopback IPs
+        if (!ip || ip === 'unknown' || ip.startsWith('127.') || ip.startsWith('::') || ip.startsWith('192.168.') || ip.startsWith('10.')) {
+            resolve({ city: 'Local', region: '-', country: 'LAN', lat: null, lon: null });
+            return;
+        }
+        const url = `https://ip-api.com/json/${ip}?fields=status,country,regionName,city,lat,lon`;
+        https.get(url, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+                try {
+                    const json = JSON.parse(data);
+                    if (json.status === 'success') {
+                        resolve({ city: json.city, region: json.regionName, country: json.country, lat: json.lat, lon: json.lon });
+                    } else {
+                        resolve({ city: ip, region: '-', country: '-', lat: null, lon: null });
+                    }
+                } catch {
+                    resolve({ city: ip, region: '-', country: '-', lat: null, lon: null });
+                }
+            });
+        }).on('error', () => resolve({ city: ip, region: '-', country: '-', lat: null, lon: null }));
+    });
+}
+
+// Ping endpoint — clients call this every 30s
+app.post('/api/ping', async (req, res) => {
+    const { sessionId } = req.body;
+    if (!sessionId) return res.status(400).json({ error: 'Missing sessionId' });
+
+    const ip = getClientIp(req);
+    const userAgent = req.headers['user-agent'] || 'Unknown';
+    const now = new Date();
+
+    if (activeSessions.has(sessionId)) {
+        const session = activeSessions.get(sessionId);
+        session.lastSeen = now;
+        session.ip = ip;
+    } else {
+        // New session — fetch geo async
+        const session = { ip, geo: null, lastSeen: now, userAgent, connectedAt: now };
+        activeSessions.set(sessionId, session);
+        fetchGeo(ip).then(geo => {
+            if (activeSessions.has(sessionId)) {
+                activeSessions.get(sessionId).geo = geo;
+            }
+        });
+    }
+
+    res.json({ ok: true });
+});
+
+// Admin stats endpoint
+app.get('/api/admin/stats', async (req, res) => {
+    const now = Date.now();
+
+    // Prune timed-out sessions
+    for (const [id, s] of activeSessions.entries()) {
+        if (now - new Date(s.lastSeen).getTime() > SESSION_TIMEOUT_MS) {
+            activeSessions.delete(id);
+        }
+    }
+
+    const sessions = Array.from(activeSessions.entries()).map(([id, s]) => ({
+        id: id.slice(0, 8),
+        ip: s.ip,
+        geo: s.geo,
+        userAgent: s.userAgent,
+        connectedAt: s.connectedAt,
+        lastSeen: s.lastSeen,
+        secondsOnline: Math.floor((now - new Date(s.connectedAt).getTime()) / 1000),
+    }));
+
+    // Aggregate KPIs from DB
+    try {
+        const [totalProjects, byCity, byCategory, byStatus, lastSync] = await Promise.all([
+            Project.count({ where: { status: { [Op.in]: ['PROJECT'] } } }),
+            Project.findAll({
+                where: { status: 'PROJECT' },
+                attributes: ['city', [sequelize.fn('COUNT', sequelize.col('id')), 'count']],
+                group: ['city'],
+                order: [[sequelize.literal('count'), 'DESC']]
+            }),
+            Project.findAll({
+                where: { status: 'PROJECT' },
+                attributes: ['category', [sequelize.fn('COUNT', sequelize.col('id')), 'count']],
+                group: ['category'],
+                order: [[sequelize.literal('count'), 'DESC']]
+            }),
+            Project.findAll({
+                where: { status: 'PROJECT' },
+                attributes: ['project_status', [sequelize.fn('COUNT', sequelize.col('id')), 'count']],
+                group: ['project_status'],
+                order: [[sequelize.literal('count'), 'DESC']]
+            }),
+            Promise.resolve(lastSuccessfulSync)
+        ]);
+
+        res.json({
+            activeUsers: sessions.length,
+            sessions,
+            kpi: {
+                totalProjects,
+                byCity: byCity.map(r => ({ label: r.city, count: parseInt(r.get('count')) })),
+                byCategory: byCategory.map(r => ({ label: r.category, count: parseInt(r.get('count')) })),
+                byStatus: byStatus.map(r => ({ label: r.project_status, count: parseInt(r.get('count')) })),
+            },
+            lastSync,
+            serverTime: new Date(),
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
 // ---------------------------------------------------------------------------
 // Helper: build a Sequelize WHERE clause from multi-value query string params

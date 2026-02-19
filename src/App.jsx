@@ -3,10 +3,17 @@ import Dashboard from './components/Dashboard';
 import Projects from './components/Projects';
 import Sidebar from './components/Sidebar';
 import Vistoria from './components/Vistoria';
+import AdminReport, { usePing } from './components/AdminReport';
 
-function App() {
+// Hidden admin panel — accessible only via /#admin in the URL
+const isAdminRoute = window.location.hash === '#admin';
+
+function AppContent() {
   const [activePage, setActivePage] = useState('dashboard');
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
+
+  // Track this session as an active user
+  usePing();
 
   return (
     <div className="App">
@@ -28,6 +35,11 @@ function App() {
       </div>
     </div>
   );
+}
+
+function App() {
+  if (isAdminRoute) return <AdminReport />;
+  return <AppContent />;
 }
 
 export default App;
