@@ -28,30 +28,33 @@ function fetchGeo(ip) {
         const unknown = { city: '-', region: '-', country: '-', lat: null, lon: null };
 
         // Skip private/loopback IPs
-        if (!ip || ip === 'unknown' || ip.startsWith('127.') || ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('::')) {
+        if (!ip || ip === 'unknown' || ip.startsWith('127.') || ip.startsWith('192.168.') || ip.startsWith('10.') || ip === '::1') {
             resolve({ city: 'Local', region: '-', country: 'LAN', lat: null, lon: null });
             return;
         }
 
-        // ip-api.com free tier does not support IPv6 — skip lookup, just show raw IP
-        const isIPv6 = ip.includes(':');
-        if (isIPv6) {
-            resolve({ city: '-', region: '-', country: 'IPv6', lat: null, lon: null });
-            return;
-        }
-
-        const url = `https://ip-api.com/json/${ip}?fields=status,country,regionName,city,lat,lon`;
+        // ipinfo.io supports both IPv4 and IPv6 natively (free, 50k req/month, no key needed)
+        const url = `https://ipinfo.io/${ip}/json`;
         https.get(url, (res) => {
             let data = '';
             res.on('data', chunk => data += chunk);
             res.on('end', () => {
                 try {
                     const json = JSON.parse(data);
-                    if (json.status === 'success') {
-                        resolve({ city: json.city, region: json.regionName, country: json.country, lat: json.lat, lon: json.lon });
-                    } else {
-                        resolve(unknown);
+                    // loc comes as "lat,lon"
+                    let lat = null, lon = null;
+                    if (json.loc) {
+                        const parts = json.loc.split(',');
+                        lat = parseFloat(parts[0]);
+                        lon = parseFloat(parts[1]);
                     }
+                    resolve({
+                        city: json.city || '-',
+                        region: json.region || '-',
+                        country: json.country || '-',
+                        lat,
+                        lon,
+                    });
                 } catch {
                     resolve(unknown);
                 }
