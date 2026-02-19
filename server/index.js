@@ -25,11 +25,21 @@ function getClientIp(req) {
 
 function fetchGeo(ip) {
     return new Promise((resolve) => {
+        const unknown = { city: '-', region: '-', country: '-', lat: null, lon: null };
+
         // Skip private/loopback IPs
-        if (!ip || ip === 'unknown' || ip.startsWith('127.') || ip.startsWith('::') || ip.startsWith('192.168.') || ip.startsWith('10.')) {
+        if (!ip || ip === 'unknown' || ip.startsWith('127.') || ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('::')) {
             resolve({ city: 'Local', region: '-', country: 'LAN', lat: null, lon: null });
             return;
         }
+
+        // ip-api.com free tier does not support IPv6 — skip lookup, just show raw IP
+        const isIPv6 = ip.includes(':');
+        if (isIPv6) {
+            resolve({ city: '-', region: '-', country: 'IPv6', lat: null, lon: null });
+            return;
+        }
+
         const url = `https://ip-api.com/json/${ip}?fields=status,country,regionName,city,lat,lon`;
         https.get(url, (res) => {
             let data = '';
@@ -40,13 +50,13 @@ function fetchGeo(ip) {
                     if (json.status === 'success') {
                         resolve({ city: json.city, region: json.regionName, country: json.country, lat: json.lat, lon: json.lon });
                     } else {
-                        resolve({ city: ip, region: '-', country: '-', lat: null, lon: null });
+                        resolve(unknown);
                     }
                 } catch {
-                    resolve({ city: ip, region: '-', country: '-', lat: null, lon: null });
+                    resolve(unknown);
                 }
             });
-        }).on('error', () => resolve({ city: ip, region: '-', country: '-', lat: null, lon: null }));
+        }).on('error', () => resolve(unknown));
     });
 }
 
