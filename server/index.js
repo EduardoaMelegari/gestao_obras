@@ -13,6 +13,21 @@ app.use(cors());
 app.use(express.json());
 
 // ---------------------------------------------------------------------------
+// Global Version Tracking (Force Refresh)
+// ---------------------------------------------------------------------------
+let currentVersion = Date.now().toString(); // Initialize with server start time
+
+app.get('/api/version', (req, res) => {
+    res.json({ version: currentVersion });
+});
+
+app.post('/api/admin/reset-version', (req, res) => {
+    currentVersion = Date.now().toString();
+    console.log(`[Admin] Version reset to: ${currentVersion}`);
+    res.json({ success: true, version: currentVersion });
+});
+
+// ---------------------------------------------------------------------------
 // Active user session tracking
 // ---------------------------------------------------------------------------
 const activeSessions = new Map(); // sessionId -> { ip, geo, lastSeen, userAgent }

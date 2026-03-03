@@ -75,6 +75,17 @@ const AdminReport = () => {
         return () => clearInterval(interval);
     }, [fetchStats]);
 
+    const handleForceRefresh = async () => {
+        if (!confirm('ATENÇÃO: Isso forçará o recarregamento da página em TODOS os dispositivos conectados. Continuar?')) return;
+        try {
+            const res = await fetch('http://localhost:36006/api/admin/reset-version', { method: 'POST' });
+            if (res.ok) alert('Comando de atualização enviado com sucesso!');
+            else alert('Erro ao enviar comando.');
+        } catch (e) {
+            alert('Erro: ' + e.message);
+        }
+    };
+
     if (loading) return (
         <div className="admin-container">
             <div className="admin-loading">Carregando relatório...</div>
@@ -98,6 +109,16 @@ const AdminReport = () => {
                     <p className="admin-subtitle">Acesso restrito — Solturi Engenharia</p>
                 </div>
                 <div className="admin-header-right">
+                    <button 
+                        onClick={handleForceRefresh} 
+                        style={{ 
+                            background: '#ff4d4f', color: '#fff', border: 'none', 
+                            padding: '8px 16px', borderRadius: '4px', cursor: 'pointer',
+                            fontWeight: 'bold', marginBottom: '8px'
+                        }}
+                    >
+                        🔄 Forçar Atualização Geral
+                    </button>
                     <div className="admin-meta">
                         <span>🕐 Servidor: {formatTime(serverTime)}</span>
                         <span>🔄 Atualizado: {lastUpdate ? lastUpdate.toLocaleTimeString('pt-BR') : '-'}</span>

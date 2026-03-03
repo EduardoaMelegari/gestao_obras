@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Dashboard from './components/Dashboard';
 import Projects from './components/Projects';
 import Sidebar from './components/Sidebar';
@@ -7,6 +7,38 @@ import AdminReport, { usePing } from './components/AdminReport';
 
 // Hidden admin panel — accessible only via /#admin in the URL
 const isAdminRoute = window.location.hash === '#admin';
+const API_BASE = 'http://localhost:36006';
+
+// Hook to check server version and force reload if changed
+function useVersionCheck() {
+  const versionRef = useRef(null);
+
+  useEffect(() => {
+    // Initial check
+    fetch(`${API_BASE}/api/version`)
+      .then(res => res.json())
+      .then(data => {
+        versionRef.current = data.version;
+        console.log('App version initialized:', data.version);
+      })
+      .catch(err => console.error('Version check failed', err));
+
+    // Periodic check
+    const interval = setInterval(() => {
+      fetch(`${API_BASE}/api/version`)
+        .then(res => res.json())
+        .then(data => {
+          if (versionRef.current && data.version !== versionRef.current) {
+            console.log('New version detected! Reloading...', data.version);
+            window.location.reload(true);
+          }
+        })
+        .catch(err => console.error('Version check failed', err));
+    }, 30000); // Check every 30s
+
+    return () => clearInterval(interval);
+  }, []);
+}
 
 function AppContent() {
   const [activePage, setActivePage] = useState('dashboard');
@@ -14,6 +46,7 @@ function AppContent() {
 
   // Track this session as an active user
   usePing();
+  useVersionCheck();
 
   return (
     <div className="App">
