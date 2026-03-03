@@ -68,11 +68,6 @@
     font-size: 0.8rem;
     color: white;
 }
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: var(--color-text-primary);
-}
 
 .search-input {
     padding: 8px 12px;

@@ -27,7 +27,7 @@ export async function fetchProjectData(city, category, seller) {
         if (city && city.length > 0) queryParams.append('city', city);
         if (category && category.length > 0) queryParams.append('category', category);
         if (seller && seller.length > 0) queryParams.append('seller', seller);
-        
+
         const url = `/api/projects?${queryParams.toString()}`;
         const response = await fetch(url);
         if (!response.ok) {
@@ -36,6 +36,24 @@ export async function fetchProjectData(city, category, seller) {
         return await response.json();
     } catch (error) {
         console.error("Failed to fetch project data:", error);
+        return null;
+    }
+}
+
+export async function fetchParadosData(city, seller) {
+    try {
+        const queryParams = new URLSearchParams();
+        if (city && city.length > 0) queryParams.append('city', city);
+        if (seller && seller.length > 0) queryParams.append('seller', seller);
+
+        const url = `/api/parados?${queryParams.toString()}`;
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return await response.json();
+    } catch (error) {
+        console.error("Failed to fetch parados data:", error);
         return null;
     }
 }

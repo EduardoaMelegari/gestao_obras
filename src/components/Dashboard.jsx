@@ -1,12 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Header from './Header';
 import KPICard from './KPICard';
 import ProjectColumn from './ProjectColumn';
 import MultiSelect from './MultiSelect';
+import Parados from './Parados';
 import { fetchDashboardData } from '../services/data';
 import './Dashboard.css';
 
 const Dashboard = () => {
+    const [activeView, setActiveView] = useState('workflow');
     const [kpiData, setKpiData] = useState(null);
     const [projectData, setProjectData] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -14,7 +16,7 @@ const Dashboard = () => {
 
     // City Filter State
     const [cities, setCities] = useState([]);
-    const [selectedCities, setSelectedCities] = useState([]); 
+    const [selectedCities, setSelectedCities] = useState([]);
     // Category Filter State
     const [categories, setCategories] = useState([]);
     const [selectedCategories, setSelectedCategories] = useState([]);
@@ -42,14 +44,14 @@ const Dashboard = () => {
                 }
                 // Update available categories if provided
                 if (result.categories && result.categories.length > 0) {
-                   setCategories(result.categories);
+                    setCategories(result.categories);
                 }
                 // Update available sellers if provided
                 if (result.sellers && result.sellers.length > 0) {
-                   setSellers(result.sellers);
+                    setSellers(result.sellers);
                 } else {
                     // Fail-safe: Extract from current projects if API doesn't return list yet
-                     const allProjs = [
+                    const allProjs = [
                         ...(result.projects.generate_os || []),
                         ...(result.projects.priority || []),
                         ...(result.projects.to_deliver || []),
@@ -133,6 +135,12 @@ const Dashboard = () => {
         return filtered;
     };
 
+    const filteredGenerateOS = useMemo(() => getFilteredData(projectData?.generate_os), [projectData, searchTerm, daysFilter]);
+    const filteredToDeliver = useMemo(() => getFilteredData(projectData?.to_deliver), [projectData, searchTerm, daysFilter]);
+    const filteredPriorities = useMemo(() => getFilteredData(projectData?.priority), [projectData, searchTerm, daysFilter]);
+    const filteredDelivered = useMemo(() => getFilteredData(projectData?.delivered), [projectData, searchTerm, daysFilter]);
+    const filteredInExecution = useMemo(() => getFilteredData(projectData?.in_execution), [projectData, searchTerm, daysFilter]);
+
     if (loading && !kpiData) {
         return <div className="loading-screen">Carregando dados...</div>;
     }
@@ -141,16 +149,10 @@ const Dashboard = () => {
         return <div className="error-screen">Erro ao carregar dados. Verifique a conexão com o servidor.</div>;
     }
 
-    const filteredGenerateOS = getFilteredData(projectData.generate_os);
-    const filteredToDeliver = getFilteredData(projectData.to_deliver);
-    const filteredPriorities = getFilteredData(projectData.priority);
-    const filteredDelivered = getFilteredData(projectData.delivered);
-    const filteredInExecution = getFilteredData(projectData.in_execution);
-
     return (
         <div className="dashboard-container">
             <div className="top-bar">
-                <Header title="INSTALAÇÃO OBRAS MATO GROSSO" />
+                <Header title={activeView === 'parados' ? 'OBRAS PARADAS' : 'INSTALAÇÃO OBRAS MATO GROSSO'} />
 
                 <div className="filter-group">
                     <div className="search-box">
@@ -211,7 +213,46 @@ const Dashboard = () => {
             </div>
 
             <div className="dashboard-content">
-                <div className="column-grid">
+                {/* View Toggle: Workflow / Parados */}
+                <div style={{ display: 'flex', gap: '0', marginBottom: '14px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #334155', alignSelf: 'flex-start', width: 'fit-content' }}>
+                    <button
+                        onClick={() => setActiveView('workflow')}
+                        style={{
+                            padding: '8px 22px',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontWeight: 'bold',
+                            fontSize: '13px',
+                            letterSpacing: '0.04em',
+                            backgroundColor: activeView === 'workflow' ? '#3b82f6' : '#1e293b',
+                            color: activeView === 'workflow' ? '#fff' : '#94a3b8',
+                            transition: 'background-color 0.2s',
+                        }}
+                    >
+                        Workflow
+                    </button>
+                    <button
+                        onClick={() => setActiveView('parados')}
+                        style={{
+                            padding: '8px 22px',
+                            border: 'none',
+                            borderLeft: '1px solid #334155',
+                            cursor: 'pointer',
+                            fontWeight: 'bold',
+                            fontSize: '13px',
+                            letterSpacing: '0.04em',
+                            backgroundColor: activeView === 'parados' ? '#dc2626' : '#1e293b',
+                            color: activeView === 'parados' ? '#fff' : '#94a3b8',
+                            transition: 'background-color 0.2s',
+                        }}
+                    >
+                        Parados
+                    </button>
+                </div>
+
+                {activeView === 'parados' && <Parados searchTerm={searchTerm} selectedCities={selectedCities} selectedSellers={selectedSellers} />}
+
+                {activeView === 'workflow' && <div className="column-grid">
                     {/* Column 0: Generate O.S. (New) */}
                     <div className="dashboard-column">
                         <KPICard data={{ ...kpiData.generateOS, count: filteredGenerateOS.length }} />
@@ -267,7 +308,7 @@ const Dashboard = () => {
                             type="with-team"
                         />
                     </div>
-                </div>
+                </div>}
             </div>
 
             <footer className="dashboard-footer">

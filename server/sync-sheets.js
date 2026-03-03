@@ -76,15 +76,15 @@ const SHEETS_CONFIG = [
 
 // Columns to ignore warnings for in Installation Sheets
 const INSTALLATION_IGNORE = [
-    'TEM INVERSOR', 'PRAZO', 'PARECER VISTORIA', 'DATA 2° SOLITAÇÃO VISTORIA', 
+    'TEM INVERSOR', 'PRAZO', 'PARECER VISTORIA', 'DATA 2° SOLITAÇÃO VISTORIA',
     'DATA INSTALAÇÃO', 'STATUS PROJETO', 'STATUS MEDIDOR', 'STATUS APP', 'PRIORIDADE',
     'DATA FINALIZAÇÃO CONF.', 'ART EMITIDA?', 'OBSERVAÇÃO CONF.', 'DATA PROTOCOLO', 'DATA FINAL PREVISTA', 'DATA INICIAL OBRA', 'INSTALADOR', 'DATA VISTORIA', 'REVISADO E PROTOCOLADO'
 ];
 
 // Columns to ignore warnings for in Project Sheets
 const PROJECT_IGNORE = [
-    'EQUIPE INSTALAÇÃO', 'OBSERVAÇÃO DA INSTALAÇÃO', 'STATUS INSTALAÇÃO', 
-    'MATERIAL ENTREGUE P/ EQUIPE INSTALAÇÃO?', 'O.S EMITIDA?', 
+    'EQUIPE INSTALAÇÃO', 'OBSERVAÇÃO DA INSTALAÇÃO', 'STATUS INSTALAÇÃO',
+    'MATERIAL ENTREGUE P/ EQUIPE INSTALAÇÃO?', 'O.S EMITIDA?',
     'TEMPO ELABORAÇÃO O.S', 'TEMPO ELABORAÇÃO O.S CONTINUO', 'PRIORIDADE',
     'STATUS VISTORIA', 'DATA SOLITAÇÃO VISTORIA',
     'TEM INVERSOR', 'PRAZO', 'STATUS MEDIDOR', 'STATUS APP', 'DATA 2° SOLITAÇÃO VISTORIA',
@@ -123,11 +123,11 @@ function resolveColumnIndices(headers, config, sheetType) {
                 // Handle duplicate header names (e.g. Sinop has two 'STATUS CONF. DOC.' columns)
                 // The first occurrence is the date, the second is the status text
                 if (key === 'DATA FINALIZAÇÃO CONF.' && name.toUpperCase() === 'STATUS CONF. DOC.') {
-                     const firstIdx = headerUpper.indexOf('STATUS CONF. DOC.');
-                     const lastIdx = headerUpper.lastIndexOf('STATUS CONF. DOC.');
-                     if (firstIdx !== lastIdx) {
-                         foundIndex = firstIdx;
-                     }
+                    const firstIdx = headerUpper.indexOf('STATUS CONF. DOC.');
+                    const lastIdx = headerUpper.lastIndexOf('STATUS CONF. DOC.');
+                    if (firstIdx !== lastIdx) {
+                        foundIndex = firstIdx;
+                    }
                 }
                 break;
             }
@@ -136,7 +136,7 @@ function resolveColumnIndices(headers, config, sheetType) {
         // Fallback to Index
         if (foundIndex === -1) {
             // Check suppression lists
-            const shouldIgnore = 
+            const shouldIgnore =
                 (sheetType === 'INSTALLATION' && INSTALLATION_IGNORE.includes(key)) ||
                 (sheetType === 'PROJECT' && PROJECT_IGNORE.includes(key));
 
@@ -156,7 +156,7 @@ function resolveColumnIndices(headers, config, sheetType) {
 
 function getValue(row, index) {
     if (index === -1 || ((index >= row.length) && index !== -1)) return '';
-    return row[index] || ''; 
+    return row[index] || '';
 }
 
 async function syncSheets() {
@@ -192,6 +192,9 @@ async function syncSheets() {
             const status = determineStatus(rowObj, sheet.type);
             if (!status) return null;
 
+            // For STOPPED projects, determine which workflow stage they were at
+            const stoppedStage = status === 'STOPPED' ? determineStoppedStage(rowObj) : null;
+
             let days = parseInt(getData('TEMPO ELABORAÇÃO O.S CONTINUO') || getData('TEMPO ELABORAÇÃO O.S') || 0);
             if (isNaN(days)) days = 0;
 
@@ -224,7 +227,7 @@ async function syncSheets() {
                 days: days,
                 city: sheet.city,
                 team: getData('EQUIPE INSTALAÇÃO'),
-                details: getData('OBSERVAÇÃO DA INSTALAÇÃO') || getData('OBSERVAÇÃO'), 
+                details: getData('OBSERVAÇÃO DA INSTALAÇÃO') || getData('OBSERVAÇÃO'),
                 external_id: getData('ID PROJETO'),
                 vistoria_status: vistoriaStatus,
                 vistoria_date: vistoriaDateStr,
@@ -232,7 +235,7 @@ async function syncSheets() {
                 // New Fields
                 seller: getData('VENDEDOR'),
                 folder: getData('PASTA'),
-                install_date: getData('DATA INSTALAÇÃO'), 
+                install_date: getData('DATA INSTALAÇÃO'),
                 has_inverter: getData('TEM INVERSOR'),
                 deadline: getData('PRAZO'),
                 vistoria_opinion: getData('PARECER VISTORIA'),
@@ -242,7 +245,9 @@ async function syncSheets() {
                 days_since_doc_conf: daysSinceDocConf,
                 doc_conf_date: docConfDateStr,
                 protocol_date: protocolDateStr,
-                days_since_protocol: daysSinceProtocol
+                days_since_protocol: daysSinceProtocol,
+                install_status: getData('STATUS INSTALAÇÃO'),
+                stopped_stage: stoppedStage
             };
         }).filter(p => p !== null);
 
@@ -264,6 +269,34 @@ async function syncSheets() {
     }
 }
 
+function determineStoppedStage(row) {
+    const osEmitida = (row['O.S EMITIDA?'] || '').trim().toUpperCase();
+    const dataPagamento = (row['DATA PAGAMENTO'] || '').trim();
+    const materialEntregue = (row['MATERIAL ENTREGUE P/ EQUIPE INSTALAÇÃO?'] || '').trim();
+    const equipe = (row['EQUIPE INSTALAÇÃO'] || '').trim();
+    const prioridade = (row['PRIORIDADE'] || '').trim();
+    const statusInstalacao = (row['STATUS INSTALAÇÃO'] || '').trim().toUpperCase();
+
+    // Same logic as determineStatus but WITHOUT the PARADO check — returns friendly label
+    if ((osEmitida.length === 0 || osEmitida === 'NÃO' || osEmitida === 'NAO') && dataPagamento.length > 0)
+        return 'Gerar O.S.';
+
+    if (prioridade.length > 0 && materialEntregue.length === 0 && osEmitida.length > 0)
+        return 'Prioridade p/ Entrega';
+
+    if (materialEntregue === 'SIM' &&
+        ((statusInstalacao !== 'EM EXECUÇÃO' && statusInstalacao !== 'EM ANDAMENTO') || equipe.length === 0))
+        return 'Obras Entregues';
+
+    if (equipe.length > 0)
+        return 'Em Execução';
+
+    if (osEmitida === 'SIM' && materialEntregue.length === 0 && dataPagamento.length > 0)
+        return 'Obras a Entregar';
+
+    return 'Indefinido';
+}
+
 function determineStatus(row, sheetType) {
     const statusInstalacao = (row['STATUS INSTALAÇÃO'] || '').trim().toUpperCase();
     const prioridade = (row['PRIORIDADE'] || '').trim();
@@ -278,6 +311,9 @@ function determineStatus(row, sheetType) {
     }
 
     // --- INSTALLATION SHEET LOGIC ---
+
+    // -1. PARADO
+    if (statusInstalacao === 'PARADO') return 'STOPPED';
 
     // 0. GENERATE O.S. (User Request)
     const isGenerateOSCandidate =

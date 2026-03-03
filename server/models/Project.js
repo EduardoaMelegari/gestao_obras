@@ -7,7 +7,7 @@ const Project = sequelize.define('Project', {
         allowNull: false
     },
     status: {
-        type: DataTypes.ENUM('GENERATE_OS', 'PRIORITY', 'TO_DELIVER', 'DELIVERED', 'IN_EXECUTION', 'COMPLETED', 'PROJECT'),
+        type: DataTypes.ENUM('GENERATE_OS', 'PRIORITY', 'TO_DELIVER', 'DELIVERED', 'IN_EXECUTION', 'COMPLETED', 'PROJECT', 'STOPPED'),
         allowNull: false
     },
     project_status: {
@@ -103,6 +103,14 @@ const Project = sequelize.define('Project', {
     },
     details: {
         type: DataTypes.STRING
+    },
+    install_status: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    stopped_stage: {
+        type: DataTypes.STRING,
+        allowNull: true
     }
 });
 

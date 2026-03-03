@@ -1,6 +1,14 @@
 import React from 'react';
 import './ProjectColumn.css';
 
+function getDaysColor(days) {
+    if (days == null || isNaN(days)) return undefined;
+    if (days < 30) return '#22c55e';
+    if (days <= 60) return '#eab308';
+    if (days <= 90) return '#f97316';
+    return '#ef4444';
+}
+
 const ProjectColumn = ({ title, secondTitle, thirdTitle, data, type, emptyMessage = "Sem dados" }) => {
     return (
         <div className="project-column-container">
@@ -15,7 +23,7 @@ const ProjectColumn = ({ title, secondTitle, thirdTitle, data, type, emptyMessag
                             {item.client}
                             {item.city && <span className="city-badge">{item.city}</span>}
                         </div>
-                        {type === 'with-days' && <div className="cell value-cell">{item.days}</div>}
+                        {type === 'with-days' && <div className="cell value-cell" style={{ color: '#000', fontWeight: 700 }}>{item.days}</div>}
                         {type === 'with-team' && <div className="cell value-cell team-cell">{item.team}</div>}
                     </div>
                 ))}

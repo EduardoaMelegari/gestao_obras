@@ -229,34 +229,28 @@ app.get('/api/dashboard', async (req, res) => {
     try {
         const whereClause = buildFilterClause(req.query);
 
-        // Fetch Data with optional filter
-        const queryOptions = {
-            where: { ...whereClause },
-            order: [['days', 'DESC']]
-        };
+        // Single query for all workflow statuses + JS grouping (much faster than 5 separate queries)
+        const [allWorkflow, allCities, allCategories, allSellers] = await Promise.all([
+            Project.findAll({
+                where: { ...whereClause, status: { [Op.in]: ['GENERATE_OS', 'PRIORITY', 'TO_DELIVER', 'DELIVERED', 'IN_EXECUTION'] } },
+                order: [['days', 'DESC']]
+            }),
+            Project.findAll({ attributes: [[sequelize.fn('DISTINCT', sequelize.col('city')), 'city']] }),
+            Project.findAll({ attributes: [[sequelize.fn('DISTINCT', sequelize.col('category')), 'category']] }),
+            Project.findAll({ attributes: [[sequelize.fn('DISTINCT', sequelize.col('seller')), 'seller']] }),
+        ]);
 
-        const generateOS = await Project.findAll({ ...queryOptions, where: { ...queryOptions.where, status: 'GENERATE_OS' } });
-        const priorities = await Project.findAll({ ...queryOptions, where: { ...queryOptions.where, status: 'PRIORITY' } });
-        const toDeliver = await Project.findAll({ ...queryOptions, where: { ...queryOptions.where, status: 'TO_DELIVER' } });
-        const delivered = await Project.findAll({ ...queryOptions, where: { ...queryOptions.where, status: 'DELIVERED' } });
-        const inExecution = await Project.findAll({ ...queryOptions, where: { ...queryOptions.where, status: 'IN_EXECUTION' } });
+        const grouped = { GENERATE_OS: [], PRIORITY: [], TO_DELIVER: [], DELIVERED: [], IN_EXECUTION: [] };
+        allWorkflow.forEach(p => { if (grouped[p.status]) grouped[p.status].push(p); });
 
-        // Get list of available cities for the filter dropdown
-        const allCities = await Project.findAll({
-            attributes: [[sequelize.fn('DISTINCT', sequelize.col('city')), 'city']]
-        });
+        const generateOS = grouped.GENERATE_OS;
+        const priorities = grouped.PRIORITY;
+        const toDeliver = grouped.TO_DELIVER;
+        const delivered = grouped.DELIVERED;
+        const inExecution = grouped.IN_EXECUTION;
+
         const cities = allCities.map(c => c.city).filter(Boolean);
-
-        // Get list of available categories for the filter dropdown
-        const allCategories = await Project.findAll({
-            attributes: [[sequelize.fn('DISTINCT', sequelize.col('category')), 'category']]
-        });
         const categories = allCategories.map(c => c.category).filter(Boolean);
-
-        // Get list of available sellers for the filter dropdown
-        const allSellers = await Project.findAll({
-            attributes: [[sequelize.fn('DISTINCT', sequelize.col('seller')), 'seller']]
-        });
         const sellers = allSellers.map(s => s.seller).filter(Boolean);
 
         // Calculate KPIs
@@ -293,26 +287,17 @@ app.get('/api/dashboard', async (req, res) => {
             }
         };
 
-        // Vistoria Data Queries
-        const vistoriaSolicitar = await Project.findAll({
-            ...queryOptions,
-            where: {
-                ...queryOptions.where,
-                status: 'COMPLETED',
-                vistoria_status: 'Não Solicitado',
-                project_status: 'Finalizado'
-            }
-        });
-
-        // Fetch all Solicitadas then split by days (to avoid DB type issues)
-        const allSolicitadas = await Project.findAll({
-            ...queryOptions,
-            where: {
-                ...queryOptions.where,
-                vistoria_status: 'Solicitado',
-                status: 'COMPLETED'
-            }
-        });
+        // Vistoria Data Queries (parallelized)
+        const [vistoriaSolicitar, allSolicitadas] = await Promise.all([
+            Project.findAll({
+                where: { ...whereClause, status: 'COMPLETED', vistoria_status: 'Não Solicitado', project_status: 'Finalizado' },
+                order: [['days', 'DESC']]
+            }),
+            Project.findAll({
+                where: { ...whereClause, vistoria_status: 'Solicitado', status: 'COMPLETED' },
+                order: [['days', 'DESC']]
+            }),
+        ]);
 
         const vistoriaSolicitadas = allSolicitadas.filter(p => p.days <= 7);
         const vistoriaAtrasadas = allSolicitadas.filter(p => p.days > 7);
@@ -362,7 +347,7 @@ app.get('/api/projects', async (req, res) => {
         // Also include DELIVERED and COMPLETED so cities like Matupá (installation-only sheets)
         // are not filtered out — deduplication below handles any overlap with PROJECT entries.
         whereClause.status = {
-            [Op.in]: ['PROJECT', 'GENERATE_OS', 'PRIORITY', 'IN_EXECUTION', 'TO_DELIVER', 'DELIVERED', 'COMPLETED']
+            [Op.in]: ['PROJECT', 'GENERATE_OS', 'PRIORITY', 'IN_EXECUTION', 'TO_DELIVER', 'DELIVERED', 'COMPLETED', 'STOPPED']
         }
 
         const allProjects = await Project.findAll({
@@ -372,11 +357,11 @@ app.get('/api/projects', async (req, res) => {
 
         // Deduplication Logic: Prioritize PROJECT status entries
         const uniqueProjectsMap = new Map();
-        
+
         allProjects.forEach(p => {
             // Unique key: Folder + City (or Client + City as fallback)
             const cityKey = p.city ? p.city.trim().toUpperCase() : 'UNKNOWN';
-            const key = (p.folder && p.folder.toString().trim().length > 0) 
+            const key = (p.folder && p.folder.toString().trim().length > 0)
                 ? `FOLDER:${p.folder.trim()}|CITY:${cityKey}`
                 : `CLIENT:${p.client.trim().toUpperCase()}|CITY:${cityKey}`;
 
@@ -426,13 +411,13 @@ app.get('/api/projects', async (req, res) => {
             // 2. In Progress (Strict Filter)
             if (allowedInProgress.includes(status)) {
                 // Exclude specific categories or types
-                const isExcluded = 
+                const isExcluded =
                     category.includes('SEM PROJETO') ||
                     (p.details && (
                         p.details.toUpperCase().includes('AMPLIAÇÃO') ||
                         p.details.toUpperCase().includes('EM ESPERA')
                     ));
-                
+
                 if (!isExcluded) {
                     group2.push(p);
                 }
@@ -473,6 +458,33 @@ app.get('/api/projects', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
+app.get('/api/parados', async (req, res) => {
+    try {
+        const whereClause = buildFilterClause(req.query);
+        whereClause.status = 'STOPPED';
+
+        const parados = await Project.findAll({
+            where: whereClause,
+            order: [['days', 'DESC']]
+        });
+
+        const [allCities, allSellers] = await Promise.all([
+            Project.findAll({ attributes: [[sequelize.fn('DISTINCT', sequelize.col('city')), 'city']] }),
+            Project.findAll({ attributes: [[sequelize.fn('DISTINCT', sequelize.col('seller')), 'seller']] }),
+        ]);
+
+        res.json({
+            parados,
+            cities: allCities.map(c => c.city).filter(Boolean).sort(),
+            sellers: allSellers.map(s => s.seller).filter(Boolean).sort(),
+        });
+    } catch (error) {
+        console.error('Error fetching parados:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 
 // Start Server
 async function start() {
