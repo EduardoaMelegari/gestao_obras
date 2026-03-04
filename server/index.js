@@ -302,17 +302,28 @@ app.get('/api/dashboard', async (req, res) => {
             }
         };
 
-        // Vistoria Data Queries (parallelized)
-        const [vistoriaSolicitar, allSolicitadas] = await Promise.all([
+        // Vistoria Data Queries (parallelized) — include COMPLETED (installation) + PROJECT/Ampliação
+        const [vistoriaSolicitarCompleted, vistoriaSolicitarAmpliacao, allSolicitadasCompleted, allSolicitadasAmpliacao] = await Promise.all([
             Project.findAll({
                 where: { ...whereClause, status: 'COMPLETED', vistoria_status: 'Não Solicitado', project_status: 'Finalizado' },
+                order: [['days', 'DESC']]
+            }),
+            Project.findAll({
+                where: { ...whereClause, status: 'PROJECT', category: { [Op.like]: '%Amplia%' }, vistoria_status: 'Não Solicitado', project_status: 'Finalizado' },
                 order: [['days', 'DESC']]
             }),
             Project.findAll({
                 where: { ...whereClause, vistoria_status: 'Solicitado', status: 'COMPLETED' },
                 order: [['days', 'DESC']]
             }),
+            Project.findAll({
+                where: { ...whereClause, vistoria_status: 'Solicitado', status: 'PROJECT', category: { [Op.like]: '%Amplia%' } },
+                order: [['days', 'DESC']]
+            }),
         ]);
+
+        const vistoriaSolicitar = [...vistoriaSolicitarCompleted, ...vistoriaSolicitarAmpliacao].sort((a, b) => (b.days || 0) - (a.days || 0));
+        const allSolicitadas = [...allSolicitadasCompleted, ...allSolicitadasAmpliacao].sort((a, b) => (b.days || 0) - (a.days || 0));
 
         const vistoriaSolicitadas = allSolicitadas.filter(p => p.days <= 7);
         const vistoriaAtrasadas = allSolicitadas.filter(p => p.days > 7);

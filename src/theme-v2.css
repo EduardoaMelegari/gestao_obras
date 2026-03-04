@@ -1,0 +1,191 @@
+/* ─────────────────────────────────────────────
+   TEMA V2 — Refinamentos sobre o V1
+   Apenas tipografia, bordas, sombras e transições.
+   NENHUMA COR alterada — usa exatamente as mesmas do V1.
+   ───────────────────────────────────────────── */
+
+/* ── Shared refinement tokens ───────────── */
+.theme-v2 {
+  --v2-radius:    8px;
+  --v2-radius-sm: 5px;
+  --v2-shadow:    0 4px 12px rgba(0,0,0,0.25);
+  --v2-shadow-sm: 0 1px 4px rgba(0,0,0,0.18);
+  --v2-shadow-md: 0 6px 20px rgba(0,0,0,0.28);
+}
+
+/* ──── Sidebar nav items — border-radius + transition ──── */
+.theme-v2 .nav-item {
+  margin: 2px 6px;
+  border-radius: var(--v2-radius-sm);
+  transition: background 0.15s, color 0.15s;
+}
+
+/* ──── Top Bar — subtle shadow ──────────── */
+.theme-v2 .top-bar {
+  box-shadow: var(--v2-shadow-sm);
+}
+
+.theme-v2 .top-bar label {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+}
+
+/* ──── Inputs — focus ring + rounded ─────── */
+.theme-v2 .search-input,
+.theme-v2 .city-dropdown {
+  border-radius: var(--v2-radius-sm);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.theme-v2 .search-input:focus,
+.theme-v2 .city-dropdown:focus {
+  box-shadow: 0 0 0 3px rgba(255,140,0,0.18);
+}
+
+/* ──── KPI Cards — rounded + shadow + hover ──── */
+.theme-v2 .kpi-card {
+  border-radius: var(--v2-radius) !important;
+  box-shadow: var(--v2-shadow-sm) !important;
+  transition: transform 0.15s, box-shadow 0.15s !important;
+}
+
+.theme-v2 .kpi-card:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: var(--v2-shadow-md) !important;
+}
+
+.theme-v2 .kpi-title {
+  letter-spacing: 0.08em !important;
+}
+
+.theme-v2 .kpi-value {
+  font-weight: 800 !important;
+}
+
+/* ──── Column grid — refined gap ────────── */
+.theme-v2 .column-grid {
+  gap: 14px;
+  padding: 12px;
+}
+
+/* ──── Project Columns — rounded + shadow ── */
+.theme-v2 .project-column-container {
+  border-radius: var(--v2-radius) !important;
+  box-shadow: var(--v2-shadow-sm) !important;
+  overflow: hidden !important;
+}
+
+.theme-v2 .column-header {
+  letter-spacing: 0.06em !important;
+  font-size: 0.75rem !important;
+}
+
+.theme-v2 .list-row {
+  transition: background 0.12s !important;
+}
+
+.theme-v2 .list-row:hover {
+  filter: brightness(1.04);
+}
+
+/* ──── Section Headers (Vistoria) ────────── */
+.theme-v2 .section-header {
+  border-radius: var(--v2-radius) var(--v2-radius) 0 0 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+}
+
+/* ──── Tables — refined typography + hover ── */
+.theme-v2 thead th {
+  text-transform: uppercase !important;
+  letter-spacing: 0.08em !important;
+  font-weight: 700 !important;
+  font-size: 0.74rem !important;
+}
+
+.theme-v2 tbody tr {
+  transition: background 0.1s;
+}
+
+.theme-v2 tbody tr:hover {
+  filter: brightness(0.97);
+}
+
+/* ──── MultiSelect — rounded + transition ── */
+.theme-v2 .multi-select-header {
+  border-radius: var(--v2-radius-sm) !important;
+  transition: border-color 0.2s, box-shadow 0.2s !important;
+}
+
+.theme-v2 .multi-select-header:hover {
+  box-shadow: 0 0 0 3px rgba(255,140,0,0.15) !important;
+}
+
+.theme-v2 .multi-select-dropdown {
+  border-radius: var(--v2-radius-sm) !important;
+  box-shadow: var(--v2-shadow-md) !important;
+}
+
+.theme-v2 .multi-select-option {
+  transition: background 0.1s !important;
+}
+
+/* ──── Buttons — rounded + press feedback ── */
+.theme-v2 button {
+  border-radius: var(--v2-radius-sm);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
+}
+
+.theme-v2 button:active {
+  transform: scale(0.97);
+}
+
+/* ──── Footer ────────────────────────────── */
+.theme-v2 .dashboard-footer {
+  font-size: 0.75rem;
+}
+
+/* ─────────────────────────────────────────────
+   Theme Toggle Button (global, fora do escopo .theme-v2)
+   ───────────────────────────────────────────── */
+.theme-toggle-btn {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+  transition: transform 0.15s, box-shadow 0.15s;
+  user-select: none;
+}
+
+.theme-toggle-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(0,0,0,0.4);
+}
+
+.theme-toggle-btn:active {
+  transform: scale(0.96);
+}
+
+.theme-toggle-btn.v1-mode {
+  background: linear-gradient(135deg, #FF8C00, #e67e00);
+  color: #fff;
+}
+
+.theme-toggle-btn.v2-mode {
+  background: linear-gradient(135deg, #FF8C00, #e05a00);
+  color: #fff;
+}

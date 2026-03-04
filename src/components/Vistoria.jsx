@@ -5,7 +5,6 @@ import ProjectColumn from './ProjectColumn';
 import MultiSelect from './MultiSelect';
 import './Dashboard.css'; // Reuse dashboard styles for grid
 import { fetchDashboardData } from '../services/data';
-
 const Vistoria = () => {
     const [vistoriaData, setVistoriaData] = useState({ solicitar: [], solicitadas: [], atrasadas: [] });
     const [cities, setCities] = useState([]);
@@ -87,6 +86,105 @@ const Vistoria = () => {
     const filteredSolicitadas = getFilteredData(vistoriaData.solicitadas);
     const filteredAtrasadas = getFilteredData(vistoriaData.atrasadas);
 
+    // ── Theme-aware color helpers ──────────────────────────────────────────
+    const tc = {
+        tablePanel:   'white',
+        tableBorder:  'rgba(0,0,0,0.1)',
+        headBg:       '#F0F4F8',
+        headText:     'black',
+        rowEven:      'white',
+        rowOdd:       '#F9F9F9',
+        rowBorder:    '#eee',
+        cellText:     'black',
+        emptyText:    '#888',
+    };
+
+    const getTipo = (item) => {
+        const cat = (item.category || '').toUpperCase();
+        return cat.includes('AMPLIA') ? 'AMPLIAÇÃO' : 'PROJETO';
+    };
+
+    const renderTable = (title, data, headerColor, showDays = true) => {
+        return (
+            <div style={{ marginBottom: '30px' }}>
+                <div className="section-header" style={{ backgroundColor: headerColor, color: 'white', padding: '10px 20px', fontSize: '1.2rem', fontWeight: 'bold', borderRadius: '5px 5px 0 0', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    {title}
+                    <span style={{ fontSize: '0.85rem', fontWeight: 'normal', opacity: 0.85, background: 'rgba(255,255,255,0.15)', borderRadius: '12px', padding: '2px 10px' }}>{data.length} registros</span>
+                </div>
+                <div style={{ overflowX: 'auto', backgroundColor: tc.tablePanel, padding: '10px', borderRadius: '0 0 5px 5px', boxShadow: `0 2px 4px ${tc.tableBorder}` }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', color: tc.cellText }}>
+                        <thead>
+                            <tr style={{ backgroundColor: tc.headBg, color: tc.headText, textAlign: 'left' }}>
+                                <th style={{ padding: '10px', borderBottom: `2px solid ${tc.rowBorder}` }}>#</th>
+                                <th style={{ padding: '10px', borderBottom: `2px solid ${tc.rowBorder}` }}>TIPO</th>
+                                <th style={{ padding: '10px', borderBottom: `2px solid ${tc.rowBorder}` }}>CIDADE</th>
+                                <th style={{ padding: '10px', borderBottom: `2px solid ${tc.rowBorder}` }}>VENDEDOR</th>
+                                <th style={{ padding: '10px', borderBottom: `2px solid ${tc.rowBorder}` }}>PASTA</th>
+                                <th style={{ padding: '10px', borderBottom: `2px solid ${tc.rowBorder}` }}>ID PROJETO</th>
+                                <th style={{ padding: '10px', borderBottom: `2px solid ${tc.rowBorder}` }}>CLIENTE</th>
+                                <th style={{ padding: '10px', borderBottom: `2px solid ${tc.rowBorder}` }}>STATUS PROJETO</th>
+                                <th style={{ padding: '10px', borderBottom: `2px solid ${tc.rowBorder}` }}>STATUS VISTORIA</th>
+                                {showDays && <th style={{ padding: '10px', borderBottom: `2px solid ${tc.rowBorder}` }}>DIAS</th>}
+                                <th style={{ padding: '10px', borderBottom: `2px solid ${tc.rowBorder}` }}>INSTALADOR</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {data.map((item, index) => {
+                                const tipo = getTipo(item);
+                                const isAmpliacao = tipo === 'AMPLIAÇÃO';
+                                return (
+                                    <tr key={index} style={{ borderBottom: `1px solid ${tc.rowBorder}`, backgroundColor: index % 2 === 0 ? tc.rowEven : tc.rowOdd, color: tc.cellText }}>
+                                        <td style={{ padding: '10px' }}>{index + 1}.</td>
+                                        <td style={{ padding: '10px' }}>
+                                            <span style={{
+                                                display: 'inline-block',
+                                                padding: '2px 10px',
+                                                borderRadius: '12px',
+                                                fontSize: '0.78rem',
+                                                fontWeight: 700,
+                                                letterSpacing: '0.03em',
+                                                background: isAmpliacao ? '#f0abfc' : '#bfdbfe',
+                                                color: isAmpliacao ? '#701a75' : '#1e3a8a',
+                                                border: `1px solid ${isAmpliacao ? '#d946ef' : '#3b82f6'}`,
+                                            }}>
+                                                {tipo}
+                                            </span>
+                                        </td>
+                                        <td style={{ padding: '10px' }}>{item.city}</td>
+                                        <td style={{ padding: '10px' }}>{item.seller || '-'}</td>
+                                        <td style={{ padding: '10px' }}>{item.folder || '-'}</td>
+                                        <td style={{ padding: '10px' }}>{item.external_id || '-'}</td>
+                                        <td style={{ padding: '10px', fontWeight: 600 }}>{item.client}</td>
+                                        <td style={{ padding: '10px' }}>{item.project_status}</td>
+                                        <td style={{ padding: '10px' }}>{item.vistoria_status || 'Não Solicitado'}</td>
+                                        {showDays && (
+                                            <td style={{ padding: '10px' }}>
+                                                <span style={{
+                                                    fontWeight: 700,
+                                                    color: (item.days || 0) > 7 ? '#ef4444' : (item.days || 0) > 3 ? '#f59e0b' : '#22c55e'
+                                                }}>
+                                                    {item.days || 0}d
+                                                </span>
+                                            </td>
+                                        )}
+                                        <td style={{ padding: '10px' }}>{item.team || item.details?.split(' - ')[0] || '-'}</td>
+                                    </tr>
+                                );
+                            })}
+                            {data.length === 0 && (
+                                <tr>
+                                    <td colSpan={showDays ? "11" : "10"} style={{ padding: '20px', textAlign: 'center', color: tc.emptyText }}>
+                                        Nenhum dado encontrado.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="dashboard-container">
             <div className="top-bar">
@@ -122,64 +220,13 @@ const Vistoria = () => {
 
                 {/* Vistorias Detailed View Tables */}
                 <div style={{ marginTop: '40px', paddingBottom: '40px' }}>
-                    {renderTable("SOLICITAR VISTORIAS", filteredSolicitar, "#0B1B48", false)}
+                    {renderTable("SOLICITAR VISTORIAS", filteredSolicitar, "#0B1B48", true)}
                     {renderTable("VISTORIAS SOLICITADAS", filteredSolicitadas, "#0B1B48", true)}
                     {renderTable("VISTORIAS ATRASADAS", filteredAtrasadas, "#B71C1C", true)}
                 </div>
             </div>
         </div>
     );
-
-    function renderTable(title, data, headerColor, showDays = true) {
-        return (
-            <div style={{ marginBottom: '30px' }}>
-                <div className="section-header" style={{ backgroundColor: headerColor, color: 'white', padding: '10px 20px', fontSize: '1.2rem', fontWeight: 'bold', borderRadius: '5px 5px 0 0' }}>
-                    {title}
-                </div>
-                <div style={{ overflowX: 'auto', backgroundColor: 'white', padding: '10px', borderRadius: '0 0 5px 5px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', color: 'black' }}>
-                        <thead>
-                            <tr style={{ backgroundColor: '#F0F4F8', color: 'black', textAlign: 'left' }}>
-                                <th style={{ padding: '10px', borderBottom: '2px solid #E0E0E0' }}>#</th>
-                                <th style={{ padding: '10px', borderBottom: '2px solid #E0E0E0' }}>CIDADE</th>
-                                <th style={{ padding: '10px', borderBottom: '2px solid #E0E0E0' }}>VENDEDOR</th>
-                                <th style={{ padding: '10px', borderBottom: '2px solid #E0E0E0' }}>PASTA</th>
-                                <th style={{ padding: '10px', borderBottom: '2px solid #E0E0E0' }}>ID PROJETO</th>
-                                <th style={{ padding: '10px', borderBottom: '2px solid #E0E0E0' }}>CLIENTE</th>
-                                <th style={{ padding: '10px', borderBottom: '2px solid #E0E0E0' }}>STATUS PROJETO</th>
-                                <th style={{ padding: '10px', borderBottom: '2px solid #E0E0E0' }}>STATUS VISTORIA</th>
-                                {showDays && <th style={{ padding: '10px', borderBottom: '2px solid #E0E0E0' }}>DIAS</th>}
-                                <th style={{ padding: '10px', borderBottom: '2px solid #E0E0E0' }}>INSTALADOR</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {data.map((item, index) => (
-                                <tr key={index} style={{ borderBottom: '1px solid #eee', backgroundColor: index % 2 === 0 ? 'white' : '#F9F9F9', color: 'black' }}>
-                                    <td style={{ padding: '10px' }}>{index + 1}.</td>
-                                    <td style={{ padding: '10px' }}>{item.city}</td>
-                                    <td style={{ padding: '10px' }}>{item.seller || '-'}</td>
-                                    <td style={{ padding: '10px' }}>{item.folder || '-'}</td>
-                                    <td style={{ padding: '10px' }}>{item.external_id || '-'}</td>
-                                    <td style={{ padding: '10px' }}>{item.client}</td>
-                                    <td style={{ padding: '10px' }}>{item.project_status}</td>
-                                    <td style={{ padding: '10px' }}>{item.vistoria_status || 'Não Solicitado'}</td>
-                                    {showDays && <td style={{ padding: '10px' }}>{item.days || 0}</td>}
-                                    <td style={{ padding: '10px' }}>{item.team || item.details?.split(' - ')[0] || 'null'}</td>
-                                </tr>
-                            ))}
-                            {data.length === 0 && (
-                                <tr>
-                                    <td colSpan={showDays ? "10" : "9"} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>
-                                        Nenhum dado encontrado.
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        );
-    }
 };
 
 export default Vistoria;

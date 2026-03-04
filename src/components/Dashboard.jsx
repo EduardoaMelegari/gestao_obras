@@ -28,6 +28,8 @@ const Dashboard = () => {
     // Days Filter State
     const [daysFilter, setDaysFilter] = useState('');
 
+    const hasSetDefaultFilter = React.useRef(false);
+
     const loadData = useCallback(async (citiesToFetch, categoriesToFetch, sellersToFetch, isBackground = false) => {
         if (!isBackground) setLoading(true);
         try {
@@ -41,6 +43,13 @@ const Dashboard = () => {
                 // Update available cities if provided
                 if (result.cities && result.cities.length > 0) {
                     setCities(result.cities);
+
+                    // Set default filter: Select all EXCEPT 'MATUPÁ' ONLY ONCE
+                    if (!hasSetDefaultFilter.current) {
+                        const defaultSelection = result.cities.filter(c => c.toUpperCase() !== 'MATUPÁ');
+                        setSelectedCities(defaultSelection);
+                        hasSetDefaultFilter.current = true;
+                    }
                 }
                 // Update available categories if provided
                 if (result.categories && result.categories.length > 0) {

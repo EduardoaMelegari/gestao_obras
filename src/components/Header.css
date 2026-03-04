@@ -19,13 +19,16 @@
     display: flex;
     align-items: center;
     gap: 10px;
+    flex-shrink: 0;
 }
 
 .header-left h1 {
-    font-size: 1rem;
+    font-size: 0.95rem;
     color: var(--color-text-primary);
-    font-weight: 500;
+    font-weight: 600;
     margin: 0;
+    white-space: nowrap;
+    letter-spacing: 0.04em;
 }
 
 .header-right {
