@@ -148,44 +148,4 @@
   font-size: 0.75rem;
 }
 
-/* ─────────────────────────────────────────────
-   Theme Toggle Button (global, fora do escopo .theme-v2)
-   ───────────────────────────────────────────── */
-.theme-toggle-btn {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 18px;
-  border: none;
-  border-radius: 50px;
-  cursor: pointer;
-  font-size: 0.82rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.35);
-  transition: transform 0.15s, box-shadow 0.15s;
-  user-select: none;
-}
-
-.theme-toggle-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 28px rgba(0,0,0,0.4);
-}
-
-.theme-toggle-btn:active {
-  transform: scale(0.96);
-}
-
-.theme-toggle-btn.v1-mode {
-  background: linear-gradient(135deg, #FF8C00, #e67e00);
-  color: #fff;
-}
-
-.theme-toggle-btn.v2-mode {
-  background: linear-gradient(135deg, #FF8C00, #e05a00);
-  color: #fff;
-}
+/* Fim dos estilos do Tema V2 padronizado */
