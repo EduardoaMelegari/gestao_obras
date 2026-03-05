@@ -20,6 +20,7 @@ const Projects = () => {
     // Tab State
     const [activeTab, setActiveTab] = useState('elaboracao');
     const [protocoladosSubTab, setProtocoladosSubTab] = useState('clean'); // 'clean' or 'pendencias'
+    const [pendenciasSubTab, setPendenciasSubTab] = useState('ALL');
 
     const handleViewChange = (view) => {
         setActiveView(view);
@@ -249,6 +250,43 @@ const Projects = () => {
 
     const allProjects = [...allNew, ...allInProgress, ...allFinished];
 
+    const projectsPendenciasGerais = allProjects.filter(p => {
+        const projStatus = (p.project_status || '').toLowerCase();
+        const vistoriaStatus = (p.vistoria_status || '').toLowerCase();
+        
+        const isConcluido = p.project_status === 'COMPLETED' || 
+                            projStatus === 'concluído' || 
+                            projStatus === 'finalizado';
+                            
+        const isVistoriaSolicitada = vistoriaStatus === 'solicitado' || 
+                                     vistoriaStatus === 'vistoria solicitada' ||
+                                     projStatus === 'vistoria solicitada';
+
+        const isExcludedStatus = projStatus.includes('protocolado') ||
+                                 projStatus.includes('análise de circuito') ||
+                                 projStatus.includes('analise de circuito') ||
+                                 projStatus.includes('obra 60') ||
+                                 projStatus.includes('obra 120') ||
+                                 projStatus.includes('em obra') ||
+                                 projStatus.includes('falta art') ||
+                                 projStatus.includes('mandar');
+
+        const vistoriaOpinion = (p.vistoria_opinion || '').toLowerCase();
+        const isInAnalise = vistoriaOpinion.includes('análise de circuito') || 
+                            vistoriaOpinion.includes('analise de circuito') || 
+                            vistoriaOpinion.includes('obra 60') || 
+                            vistoriaOpinion.includes('obra 120') ||
+                            vistoriaOpinion.includes('em obra');
+
+        if (isConcluido || isVistoriaSolicitada || isExcludedStatus || isInAnalise) return false;
+        
+        const obs = p.details || '';
+        const avaliacao = p.vistoria_opinion || '';
+        const status = p.project_status || '';
+        
+        return obs.trim() !== '' || avaliacao.trim() !== '' || status.trim() !== '';
+    }).sort((a, b) => new Date(a.protocol_date || a.install_date || 0) - new Date(b.protocol_date || b.install_date || 0));
+
     // --- Table Columns ---
     const columnsInProgress = [
         { header: 'CIDADE', accessor: 'city', width: '10%' },
@@ -349,12 +387,26 @@ const Projects = () => {
         { header: 'PARECER ENERGISA', accessor: 'vistoria_opinion', width: '15%' },
     ];
 
+    const columnsPendenciasGerais = [
+        { header: 'CLIENTE', accessor: 'client' },
+        { header: 'CIDADE', accessor: 'city', width: '10%' },
+        { header: 'PASTA', accessor: 'folder', width: '8%' },
+        { header: 'ETAPA ATUAL', accessor: 'project_status', width: '15%' },
+        { header: 'MOTIVO / PENDÊNCIA', accessor: 'details', width: '25%' },
+        { header: 'PRAZO', accessor: 'deadline', width: '10%' }
+    ];
+
     const getRowClassInProgress = (item) => {
         const status = (item.project_status || '').toLowerCase();
         if (status.includes('atrasado') || status.includes('não iniciado') || status.includes('nao iniciado')) return 'row-red';
         if (status.includes('falta art') || status.includes('pendente')) return 'row-yellow';
         if (status.includes('andamento') || status.includes('em andamento')) return 'row-blue';
         return '';
+    };
+
+    const getRowClassProtocolados = (item) => {
+        if (item.days_since_protocol > 120) return 'row-red';
+        return getRowClassInProgress(item);
     };
 
     // --- Tab config ---
@@ -368,6 +420,7 @@ const Projects = () => {
         { id: 'protocolados', label: 'Projetos Protocolados', color: '#0ea5e9' },
         { id: 'analise', label: 'Análise de Circuito', color: '#8b5cf6' },
         { id: 'concluidos', label: 'Projetos Concluídos', color: '#22c55e' },
+        { id: 'pendencias_gerais', label: 'Pendências Gerais', color: '#ef4444' },
     ];
 
     const ampliacaoTabs = [
@@ -460,7 +513,7 @@ const Projects = () => {
                                 title="PROJETOS COM PENDÊNCIAS"
                                 columns={columnsProtocolados}
                                 data={getFilteredData(projectsProtocoladosPendencias)}
-                                getRowClass={getRowClassInProgress}
+                                getRowClass={getRowClassProtocolados}
                                 headerColor="#dc2626"
                             />
                         )}
@@ -484,6 +537,76 @@ const Projects = () => {
                         headerColor="#166534"
                     />
                 );
+            case 'pendencias_gerais': {
+                const pendenciasFiltradas = getFilteredData(projectsPendenciasGerais);
+                const groupedByStatus = pendenciasFiltradas.reduce((acc, p) => {
+                    const status = p.project_status ? p.project_status.toUpperCase() : 'SEM STATUS DEFINIDO';
+                    if (!acc[status]) acc[status] = [];
+                    acc[status].push(p);
+                    return acc;
+                }, {});
+
+                const statusKeys = Object.keys(groupedByStatus).sort((a, b) => a.localeCompare(b));
+
+                let dataToDisplay = pendenciasFiltradas;
+                let tableTitle = "TODAS AS PENDÊNCIAS";
+
+                if (pendenciasSubTab !== 'ALL' && groupedByStatus[pendenciasSubTab]) {
+                    dataToDisplay = groupedByStatus[pendenciasSubTab];
+                    tableTitle = `PENDÊNCIAS: ${pendenciasSubTab}`;
+                }
+
+                // Default if subTab is no longer valid
+                if (pendenciasSubTab !== 'ALL' && !groupedByStatus[pendenciasSubTab] && statusKeys.length > 0) {
+                    setPendenciasSubTab('ALL');
+                }
+
+                return (
+                    <div>
+                        <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '10px', marginBottom: '20px' }}>
+                            <button
+                                onClick={() => setPendenciasSubTab('ALL')}
+                                style={{
+                                    padding: '8px 16px',
+                                    backgroundColor: pendenciasSubTab === 'ALL' ? '#b91c1c' : '#1e293b',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontWeight: 'bold',
+                                    opacity: pendenciasSubTab === 'ALL' ? 1 : 0.7
+                                }}
+                            >
+                                Todas ({pendenciasFiltradas.length})
+                            </button>
+                            {statusKeys.map(status => (
+                                <button
+                                    key={status}
+                                    onClick={() => setPendenciasSubTab(status)}
+                                    style={{
+                                        padding: '8px 16px',
+                                        backgroundColor: pendenciasSubTab === status ? '#b91c1c' : '#1e293b',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        cursor: 'pointer',
+                                        fontWeight: 'bold',
+                                        opacity: pendenciasSubTab === status ? 1 : 0.7
+                                    }}
+                                >
+                                    {status} ({groupedByStatus[status].length})
+                                </button>
+                            ))}
+                        </div>
+                        <ProjectTable 
+                            title={tableTitle}
+                            columns={columnsPendenciasGerais}
+                            data={dataToDisplay}
+                            headerColor="#b91c1c"
+                        />
+                    </div>
+                );
+            }
             case 'amp_elaboracao':
                 return (
                     <ProjectTable
@@ -553,6 +676,8 @@ const Projects = () => {
                 return getFilteredData(projectsAnaliseCircuito).length;
             case 'concluidos':
                 return getFilteredData(projectsConcluidos).length;
+            case 'pendencias_gerais':
+                return getFilteredData(projectsPendenciasGerais).length;
             case 'amp_elaboracao':
                 return getFilteredData(ampliacao_emElaboracao).length;
             case 'amp_pendentes':

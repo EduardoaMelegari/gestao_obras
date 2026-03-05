@@ -3,6 +3,7 @@ import Dashboard from './components/Dashboard';
 import Projects from './components/Projects';
 import Sidebar from './components/Sidebar';
 import Vistoria from './components/Vistoria';
+import AlertsCenter from './components/AlertsCenter';
 import AdminReport, { usePing } from './components/AdminReport';
 import './theme-v2.css';
 
@@ -66,6 +67,7 @@ function AppContent() {
           {activePage === 'dashboard' && <Dashboard />}
           {activePage === 'projects' && <Projects />}
           {activePage === 'vistoria' && <Vistoria />}
+          {activePage === 'alertas' && <AlertsCenter />}
         </div>
       </div>
   );
