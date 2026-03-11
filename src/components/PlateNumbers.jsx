@@ -203,10 +203,10 @@ const PlateNumbers = () => {
 
     const columns = [
         { header: 'FILIAL', accessor: 'branch', width: '9%' },
+        { header: 'CLIENTE', accessor: 'client' },
         { header: 'QTD. MÓDULOS', accessor: 'plate_count', width: '8%' },
         { header: 'POTÊNCIA DO MÓDULO (W)', accessor: 'plate_power_w', width: '10%', render: (item) => formatNumber(item.plate_power_w, 0) },
         { header: 'TOTAL (kWp)', accessor: 'plate_total_power_kw', width: '8%', render: (item) => formatNumber(item.plate_total_power_kw, 3) },
-        { header: 'CLIENTE', accessor: 'client' },
         { header: 'PASTA', accessor: 'folder', width: '8%' },
         { header: 'VENDEDOR', accessor: 'seller', width: '10%' },
         { header: 'STATUS INSTALAÇÃO', accessor: 'install_status', width: '12%' },
