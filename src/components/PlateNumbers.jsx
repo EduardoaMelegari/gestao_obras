@@ -203,8 +203,6 @@ const PlateNumbers = () => {
 
     const columns = [
         { header: 'FILIAL', accessor: 'branch', width: '9%' },
-        { header: 'DATA INSTALAÇÃO', accessor: 'install_date', width: '10%' },
-        { header: 'NÚMERO', accessor: 'plate_number', width: '8%' },
         { header: 'QTD. MÓDULOS', accessor: 'plate_count', width: '8%' },
         { header: 'POTÊNCIA DO MÓDULO (W)', accessor: 'plate_power_w', width: '10%', render: (item) => formatNumber(item.plate_power_w, 0) },
         { header: 'TOTAL (kWp)', accessor: 'plate_total_power_kw', width: '8%', render: (item) => formatNumber(item.plate_total_power_kw, 3) },
@@ -228,7 +226,7 @@ const PlateNumbers = () => {
             {!loading && !error && (
                 <>
                     <div className="top-bar">
-                        <Header title="MÓDULOS FOTOVOLTAICOS" />
+                        <Header title="MÓDULOS" />
 
                         <div className="filter-group plate-filters">
                             <div className="search-box">
@@ -254,7 +252,7 @@ const PlateNumbers = () => {
                             </div>
 
                             <div className="city-selector">
-                                <label>Potência do Módulo (W):</label>
+                                <label>Pot. Mód. (W):</label>
                                 <MultiSelect
                                     options={powerOptions}
                                     selected={selectedPowers}
@@ -264,7 +262,7 @@ const PlateNumbers = () => {
                             </div>
 
                             <div className="city-selector">
-                                <label>Status Instalação:</label>
+                                <label>Status:</label>
                                 <MultiSelect
                                     options={installStatusOptions}
                                     selected={selectedInstallStatuses}
@@ -274,7 +272,7 @@ const PlateNumbers = () => {
                             </div>
 
                             <div className="plate-filter-inline">
-                                <label htmlFor="plate-count-min">Qtd. Módulos:</label>
+                                <label htmlFor="plate-count-min">Qtd. Mód.:</label>
                                 <input
                                     id="plate-count-min"
                                     className="city-dropdown plate-number-input"
@@ -331,7 +329,7 @@ const PlateNumbers = () => {
 
                         <div className="tab-content">
                             <ProjectTable
-                                title="MÓDULOS FOTOVOLTAICOS (MAIS ANTIGOS PRIMEIRO)"
+                                title="MÓDULOS (MAIS ANTIGOS PRIMEIRO)"
                                 columns={columns}
                                 data={filteredEntries}
                                 headerColor="#0f4c81"

@@ -1,9 +1,9 @@
 .plate-numbers-view .top-bar {
     height: auto;
     min-height: 60px;
-    align-items: flex-start;
-    padding: 10px 15px;
-    gap: 10px;
+    align-items: center;
+    padding: 8px 12px;
+    gap: 8px;
 }
 
 .plate-numbers-view .dashboard-content {
@@ -13,20 +13,60 @@
 
 .plate-numbers-view .plate-filters {
     flex: 1;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     justify-content: flex-end;
     align-items: center;
-    row-gap: 8px;
+    gap: 6px;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 2px;
+    scrollbar-width: thin;
+}
+
+.plate-numbers-view .plate-filters .search-box,
+.plate-numbers-view .plate-filters .city-selector,
+.plate-numbers-view .plate-filters .plate-filter-inline {
+    flex-shrink: 0;
+}
+
+.plate-numbers-view .plate-filters label {
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+}
+
+.plate-numbers-view .plate-filters .search-input {
+    width: 130px;
+    font-size: 0.8rem;
+    padding: 6px 8px;
+}
+
+.plate-numbers-view .plate-filters .multi-select-container {
+    width: 112px;
+}
+
+.plate-numbers-view .plate-filters .multi-select-header {
+    padding: 6px 8px;
+    font-size: 12px;
+}
+
+.plate-numbers-view .plate-filters .city-dropdown {
+    font-size: 0.8rem;
+    padding: 6px 8px;
 }
 
 .plate-numbers-view .plate-number-input {
-    width: 74px;
+    width: 54px;
 }
 
 .plate-numbers-view .plate-filter-inline {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
+}
+
+.plate-numbers-view .plate-filter-inline input[type="date"] {
+    width: 122px;
 }
 
 .plates-totals-row {
@@ -61,12 +101,7 @@
 
 @media (max-width: 1100px) {
     .plate-numbers-view .top-bar {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .plate-numbers-view .plate-filters {
-        justify-content: flex-start;
+        align-items: flex-start;
     }
 
     .plates-totals-row {
