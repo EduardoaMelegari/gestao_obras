@@ -46,10 +46,25 @@ function formatNumber(value, fractionDigits = 0) {
     return Number(value).toLocaleString('pt-BR', { maximumFractionDigits: fractionDigits, minimumFractionDigits: fractionDigits });
 }
 
+function normalizeText(value) {
+    return (value || '')
+        .toString()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toUpperCase();
+}
+
+function isFinalizedStatus(value) {
+    const normalized = normalizeText(value);
+    return normalized.includes('FINALIZAD');
+}
+
 const PlateNumbers = () => {
     const [entries, setEntries] = useState([]);
     const [branches, setBranches] = useState([]);
     const [powerOptions, setPowerOptions] = useState([]);
+    const [installStatusOptions, setInstallStatusOptions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const isFirstLoad = useRef(true);
@@ -57,12 +72,11 @@ const PlateNumbers = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedBranches, setSelectedBranches] = useState([]);
     const [selectedPowers, setSelectedPowers] = useState([]);
+    const [selectedInstallStatuses, setSelectedInstallStatuses] = useState([]);
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
     const [plateCountMin, setPlateCountMin] = useState('');
     const [plateCountMax, setPlateCountMax] = useState('');
-    const [totalKwMin, setTotalKwMin] = useState('');
-    const [totalKwMax, setTotalKwMax] = useState('');
 
     const loadData = useCallback(async (isBackground = false) => {
         if (!isBackground && isFirstLoad.current) setLoading(true);
@@ -74,13 +88,22 @@ const PlateNumbers = () => {
 
             const branchOptions = result.filters?.branches || [];
             const powerList = (result.filters?.platePowers || []).map((v) => String(v));
+            const statusList = [...new Set((result.entries || [])
+                .map((item) => (item.install_status || 'Sem Status').toString().trim())
+                .filter(Boolean))]
+                .sort((a, b) => a.localeCompare(b));
 
             setBranches(branchOptions);
             setPowerOptions(powerList);
+            setInstallStatusOptions(statusList);
             setError(null);
 
             if (isFirstLoad.current) {
-                setSelectedBranches(branchOptions);
+                const defaultBranches = branchOptions.filter((branch) => normalizeText(branch) !== 'MATUPA');
+                const defaultStatuses = statusList.filter((status) => !isFinalizedStatus(status));
+
+                setSelectedBranches(defaultBranches);
+                setSelectedInstallStatuses(defaultStatuses);
             }
         } catch (err) {
             console.error(err);
@@ -104,10 +127,9 @@ const PlateNumbers = () => {
         const toDateExclusive = dateTo ? new Date(new Date(dateTo).getFullYear(), new Date(dateTo).getMonth(), new Date(dateTo).getDate() + 1) : null;
         const countMin = plateCountMin === '' ? null : Number(plateCountMin);
         const countMax = plateCountMax === '' ? null : Number(plateCountMax);
-        const kwMin = totalKwMin === '' ? null : Number(totalKwMin);
-        const kwMax = totalKwMax === '' ? null : Number(totalKwMax);
         const activePowerSet = new Set(selectedPowers);
         const activeBranchSet = new Set(selectedBranches);
+        const activeStatusSet = new Set(selectedInstallStatuses);
         const query = searchTerm.trim().toLowerCase();
 
         const filtered = entries.filter((item) => {
@@ -118,18 +140,14 @@ const PlateNumbers = () => {
                 if (!activePowerSet.has(powerLabel)) return false;
             }
 
+            const installStatus = (item.install_status || 'Sem Status').toString().trim();
+            if (selectedInstallStatuses.length > 0 && !activeStatusSet.has(installStatus)) return false;
+
             if (countMin !== null && Number.isFinite(countMin)) {
                 if (item.plate_count === null || item.plate_count === undefined || Number(item.plate_count) < countMin) return false;
             }
             if (countMax !== null && Number.isFinite(countMax)) {
                 if (item.plate_count === null || item.plate_count === undefined || Number(item.plate_count) > countMax) return false;
-            }
-
-            if (kwMin !== null && Number.isFinite(kwMin)) {
-                if (item.plate_total_power_kw === null || item.plate_total_power_kw === undefined || Number(item.plate_total_power_kw) < kwMin) return false;
-            }
-            if (kwMax !== null && Number.isFinite(kwMax)) {
-                if (item.plate_total_power_kw === null || item.plate_total_power_kw === undefined || Number(item.plate_total_power_kw) > kwMax) return false;
             }
 
             if (fromDate || toDateExclusive) {
@@ -168,12 +186,11 @@ const PlateNumbers = () => {
         entries,
         selectedBranches,
         selectedPowers,
+        selectedInstallStatuses,
         dateFrom,
         dateTo,
         plateCountMin,
         plateCountMax,
-        totalKwMin,
-        totalKwMax,
         searchTerm
     ]);
 
@@ -246,6 +263,16 @@ const PlateNumbers = () => {
                                 />
                             </div>
 
+                            <div className="city-selector">
+                                <label>Status Instalação:</label>
+                                <MultiSelect
+                                    options={installStatusOptions}
+                                    selected={selectedInstallStatuses}
+                                    onChange={setSelectedInstallStatuses}
+                                    placeholder="Todos"
+                                />
+                            </div>
+
                             <div className="plate-filter-inline">
                                 <label htmlFor="plate-count-min">Qtd Placas:</label>
                                 <input
@@ -264,28 +291,6 @@ const PlateNumbers = () => {
                                     placeholder="Max"
                                     value={plateCountMax}
                                     onChange={(e) => setPlateCountMax(e.target.value)}
-                                />
-                            </div>
-
-                            <div className="plate-filter-inline">
-                                <label>Totalizador (kWp):</label>
-                                <input
-                                    className="city-dropdown plate-number-input"
-                                    type="number"
-                                    min="0"
-                                    step="0.001"
-                                    placeholder="Min"
-                                    value={totalKwMin}
-                                    onChange={(e) => setTotalKwMin(e.target.value)}
-                                />
-                                <input
-                                    className="city-dropdown plate-number-input"
-                                    type="number"
-                                    min="0"
-                                    step="0.001"
-                                    placeholder="Max"
-                                    value={totalKwMax}
-                                    onChange={(e) => setTotalKwMax(e.target.value)}
                                 />
                             </div>
 
