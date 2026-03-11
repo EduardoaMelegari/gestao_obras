@@ -49,6 +49,7 @@ const Projects = () => {
         if (!isBackground && isFirstLoad.current) setLoading(true);
         try {
             const result = await fetchProjectData(citiesToFetch, categoriesToFetch, sellersToFetch);
+            if (!result) throw new Error('Resposta vazia da API de projetos');
             if (result) {
                 setError(null);
                 // Populate filter dropdowns
@@ -87,7 +88,7 @@ const Projects = () => {
             }
         } catch (err) {
             console.error(err);
-            if (!isBackground) setError('Erro ao carregar dados. Verifique a conexão com o servidor.');
+            if (!isBackground) setError(`Erro ao carregar dados: ${err.message || 'falha de conexão com o servidor'}`);
         } finally {
             // Clear loading screen only after the true first data load
             if (!isBackground && isFirstLoad.current) {

@@ -1,3 +1,5 @@
+import { fetchJson } from './http';
+
 // Use relative path so it works with proxy (Dev: Vite Proxy, Prod: Nginx Proxy)
 const API_URL = '/api/dashboard';
 
@@ -9,15 +11,10 @@ export async function fetchDashboardData(city, category, seller) {
         if (seller && seller.length > 0) queryParams.append('seller', seller);
 
         const url = `${API_URL}?${queryParams.toString()}`;
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        return await response.json();
+        return await fetchJson(url, { cache: 'no-store' });
     } catch (error) {
         console.error("Failed to fetch dashboard data:", error);
-        // Fallback or re-throw
-        return null;
+        throw error;
     }
 }
 
@@ -29,14 +26,10 @@ export async function fetchProjectData(city, category, seller) {
         if (seller && seller.length > 0) queryParams.append('seller', seller);
 
         const url = `/api/projects?${queryParams.toString()}`;
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        return await response.json();
+        return await fetchJson(url, { cache: 'no-store' });
     } catch (error) {
         console.error("Failed to fetch project data:", error);
-        return null;
+        throw error;
     }
 }
 
@@ -47,14 +40,10 @@ export async function fetchParadosData(city, seller) {
         if (seller && seller.length > 0) queryParams.append('seller', seller);
 
         const url = `/api/parados?${queryParams.toString()}`;
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        return await response.json();
+        return await fetchJson(url, { cache: 'no-store' });
     } catch (error) {
         console.error("Failed to fetch parados data:", error);
-        return null;
+        throw error;
     }
 }
 

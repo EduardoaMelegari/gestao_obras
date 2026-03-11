@@ -5,6 +5,7 @@ import Sidebar from './components/Sidebar';
 import Vistoria from './components/Vistoria';
 import AlertsCenter from './components/AlertsCenter';
 import AdminReport, { usePing } from './components/AdminReport';
+import { fetchJson } from './services/http';
 import './theme-v2.css';
 
 // Hidden admin panel — accessible only via /#admin in the URL
@@ -15,27 +16,28 @@ function useVersionCheck() {
   const versionRef = useRef(null);
 
   useEffect(() => {
-    // Initial check
-    fetch('/api/version')
-      .then(res => res.json())
-      .then(data => {
-        versionRef.current = data.version;
-        console.log('App version initialized:', data.version);
-      })
-      .catch(err => console.error('Version check failed', err));
+    const checkVersion = async () => {
+      try {
+        const data = await fetchJson('/api/version', { cache: 'no-store' });
+        if (!data?.version) throw new Error('Missing "version" in /api/version response');
 
-    // Periodic check
-    const interval = setInterval(() => {
-      fetch('/api/version')
-        .then(res => res.json())
-        .then(data => {
-          if (versionRef.current && data.version !== versionRef.current) {
-            console.log('New version detected! Reloading...', data.version);
-            window.location.reload(true);
-          }
-        })
-        .catch(err => console.error('Version check failed', err));
-    }, 30000); // Check every 30s
+        if (versionRef.current && data.version !== versionRef.current) {
+          console.log('New version detected! Reloading...', data.version);
+          window.location.reload(true);
+          return;
+        }
+
+        if (!versionRef.current) {
+          console.log('App version initialized:', data.version);
+        }
+        versionRef.current = data.version;
+      } catch (err) {
+        console.error('Version check failed:', err.message || err);
+      }
+    };
+
+    checkVersion();
+    const interval = setInterval(checkVersion, 30000); // Check every 30s
 
     return () => clearInterval(interval);
   }, []);

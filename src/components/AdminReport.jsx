@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { fetchJson } from '../services/http';
 import './AdminReport.css';
 
 // Gera ou recupera um sessionId único por aba do navegador
@@ -56,9 +57,7 @@ const AdminReport = () => {
     const fetchStats = useCallback(async (silent = false) => {
         if (!silent) setLoading(true);
         try {
-            const res = await fetch('/api/admin/stats');
-            if (!res.ok) throw new Error('Falha ao buscar dados');
-            const data = await res.json();
+            const data = await fetchJson('/api/admin/stats', { cache: 'no-store' });
             setStats(data);
             setLastUpdate(new Date());
             setError(null);
@@ -78,9 +77,8 @@ const AdminReport = () => {
     const handleForceRefresh = async () => {
         if (!confirm('ATENÇÃO: Isso forçará o recarregamento da página em TODOS os dispositivos conectados. Continuar?')) return;
         try {
-            const res = await fetch('/api/admin/reset-version', { method: 'POST' });
-            if (res.ok) alert('Comando de atualização enviado com sucesso!');
-            else alert('Erro ao enviar comando.');
+            await fetchJson('/api/admin/reset-version', { method: 'POST' });
+            alert('Comando de atualização enviado com sucesso!');
         } catch (e) {
             alert('Erro: ' + e.message);
         }

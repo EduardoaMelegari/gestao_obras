@@ -11,6 +11,14 @@ const PORT = process.env.PORT || 36006;
 
 app.use(cors());
 app.use(express.json());
+app.use('/api', (req, res, next) => {
+    // Prevent stale API responses in browser/proxy caches.
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    res.set('Surrogate-Control', 'no-store');
+    next();
+});
 
 // ---------------------------------------------------------------------------
 // Global Version Tracking (Force Refresh)
