@@ -82,7 +82,7 @@ const PlateNumbers = () => {
         if (!isBackground && isFirstLoad.current) setLoading(true);
         try {
             const result = await fetchPlatesData();
-            if (!result) throw new Error('Resposta vazia da API de placas');
+            if (!result) throw new Error('Resposta vazia da API de módulos fotovoltaicos');
 
             setEntries(result.entries || []);
 
@@ -205,8 +205,8 @@ const PlateNumbers = () => {
         { header: 'FILIAL', accessor: 'branch', width: '9%' },
         { header: 'DATA INSTALAÇÃO', accessor: 'install_date', width: '10%' },
         { header: 'NÚMERO', accessor: 'plate_number', width: '8%' },
-        { header: 'QTD. PLACAS', accessor: 'plate_count', width: '8%' },
-        { header: 'POTÊNCIA PLACA (W)', accessor: 'plate_power_w', width: '10%', render: (item) => formatNumber(item.plate_power_w, 0) },
+        { header: 'QTD. MÓDULOS', accessor: 'plate_count', width: '8%' },
+        { header: 'POTÊNCIA DO MÓDULO (W)', accessor: 'plate_power_w', width: '10%', render: (item) => formatNumber(item.plate_power_w, 0) },
         { header: 'TOTAL (kWp)', accessor: 'plate_total_power_kw', width: '8%', render: (item) => formatNumber(item.plate_total_power_kw, 3) },
         { header: 'CLIENTE', accessor: 'client' },
         { header: 'PASTA', accessor: 'folder', width: '8%' },
@@ -228,7 +228,7 @@ const PlateNumbers = () => {
             {!loading && !error && (
                 <>
                     <div className="top-bar">
-                        <Header title="NÚMERO DE PLACAS" />
+                        <Header title="MÓDULOS FOTOVOLTAICOS" />
 
                         <div className="filter-group plate-filters">
                             <div className="search-box">
@@ -254,7 +254,7 @@ const PlateNumbers = () => {
                             </div>
 
                             <div className="city-selector">
-                                <label>Potência Placa (W):</label>
+                                <label>Potência do Módulo (W):</label>
                                 <MultiSelect
                                     options={powerOptions}
                                     selected={selectedPowers}
@@ -274,7 +274,7 @@ const PlateNumbers = () => {
                             </div>
 
                             <div className="plate-filter-inline">
-                                <label htmlFor="plate-count-min">Qtd Placas:</label>
+                                <label htmlFor="plate-count-min">Qtd. Módulos:</label>
                                 <input
                                     id="plate-count-min"
                                     className="city-dropdown plate-number-input"
@@ -320,18 +320,18 @@ const PlateNumbers = () => {
                                 <span className="plates-total-value">{formatNumber(totals.totalProjects, 0)}</span>
                             </div>
                             <div className="plates-total-card">
-                                <span className="plates-total-label">Total de Placas</span>
+                                <span className="plates-total-label">Total de Módulos</span>
                                 <span className="plates-total-value">{formatNumber(totals.totalPlates, 0)}</span>
                             </div>
                             <div className="plates-total-card">
-                                <span className="plates-total-label">Totalizador (kWp)</span>
+                                <span className="plates-total-label">Potência Total FV (kWp)</span>
                                 <span className="plates-total-value">{formatNumber(totals.totalPowerKw, 3)}</span>
                             </div>
                         </div>
 
                         <div className="tab-content">
                             <ProjectTable
-                                title="NÚMERO DE PLACAS (MAIS ANTIGOS PRIMEIRO)"
+                                title="MÓDULOS FOTOVOLTAICOS (MAIS ANTIGOS PRIMEIRO)"
                                 columns={columns}
                                 data={filteredEntries}
                                 headerColor="#0f4c81"

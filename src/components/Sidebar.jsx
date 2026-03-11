@@ -34,10 +34,10 @@ const Sidebar = ({ activePage, onNavigate, isExpanded, onToggle }) => {
                 <div
                     className={`nav-item ${activePage === 'plate_numbers' ? 'active' : ''}`}
                     onClick={() => onNavigate('plate_numbers')}
-                    title="Número de placas"
+                    title="Módulos fotovoltaicos"
                 >
                     <span className="icon">🔢</span>
-                    {isExpanded && <span className="label">Número de placas</span>}
+                    {isExpanded && <span className="label">Módulos fotovoltaicos</span>}
                 </div>
 
                 <div
