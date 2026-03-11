@@ -47,6 +47,15 @@ export async function fetchParadosData(city, seller) {
     }
 }
 
+export async function fetchPlatesData() {
+    try {
+        return await fetchJson('/api/plates', { cache: 'no-store' });
+    } catch (error) {
+        console.error("Failed to fetch plates data:", error);
+        throw error;
+    }
+}
+
 // Keep constants for shapes if component relies on them initially, but mostly replaced by API
 export const KPI_DATA_SHAPE = {
     generateOS: { title: "GERAR O.S.", count: 0, color: "#FFA500", statusId: "generate_os" },

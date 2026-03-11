@@ -244,6 +244,46 @@ function buildFilterClause(query, fields = ['city', 'category', 'seller']) {
     return where;
 }
 
+function parseDateString(value) {
+    if (!value) return null;
+    const raw = String(value).trim();
+    if (!raw) return null;
+
+    const normalized = raw
+        .replace(/[^0-9/-]/g, '')
+        .replace(/\/+/g, '/')
+        .replace(/-+/g, '-')
+        .replace(/^[/\\-]+|[/\\-]+$/g, '');
+
+    if (normalized.includes('/') || normalized.includes('-')) {
+        const separator = normalized.includes('/') ? '/' : '-';
+        const parts = normalized.split(separator).filter(Boolean);
+        if (parts.length === 3) {
+            if (parts[0].length === 4) {
+                const [yyyy, mm, dd] = parts;
+                const d = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+                return Number.isNaN(d.getTime()) ? null : d;
+            }
+            const [dd, mm, yyyy] = parts;
+            const d = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+            return Number.isNaN(d.getTime()) ? null : d;
+        }
+    }
+
+    const d = new Date(raw);
+    return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function startOfDay(date) {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function addDays(date, days) {
+    const d = new Date(date);
+    d.setDate(d.getDate() + days);
+    return d;
+}
+
 // Tracks the timestamp of the last successful Google Sheets → DB sync
 let lastSuccessfulSync = null;
 
@@ -489,6 +529,101 @@ app.get('/api/projects', async (req, res) => {
 
     } catch (error) {
         console.error('Error fetching projects dashboard:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.get('/api/plates', async (req, res) => {
+    try {
+        const whereClause = buildFilterClause(req.query, ['city']);
+        whereClause.status = {
+            [Op.in]: ['GENERATE_OS', 'PRIORITY', 'TO_DELIVER', 'DELIVERED', 'IN_EXECUTION', 'COMPLETED', 'STOPPED']
+        };
+
+        const projects = await Project.findAll({
+            where: whereClause,
+            order: [['updatedAt', 'DESC']]
+        });
+
+        const dateFromRaw = req.query.date_from ? new Date(req.query.date_from) : null;
+        const dateToRaw = req.query.date_to ? new Date(req.query.date_to) : null;
+        const dateFrom = (dateFromRaw && !Number.isNaN(dateFromRaw.getTime())) ? startOfDay(dateFromRaw) : null;
+        const dateTo = (dateToRaw && !Number.isNaN(dateToRaw.getTime())) ? addDays(startOfDay(dateToRaw), 1) : null;
+        const plateCountFilter = req.query.plate_count ? Number(req.query.plate_count) : null;
+        const platePowerFilter = req.query.plate_power_w ? Number(req.query.plate_power_w) : null;
+
+        const normalized = projects.map((p) => {
+            const installDateObj = parseDateString(p.install_date);
+            return {
+                id: p.id,
+                city: p.city,
+                branch: p.city, // Filial = cidade para este dashboard
+                client: p.client,
+                seller: p.seller,
+                folder: p.folder,
+                plate_number: p.plate_number,
+                plate_count: p.plate_count,
+                plate_power_w: p.plate_power_w,
+                plate_total_power_kw: p.plate_total_power_kw,
+                install_date: p.install_date,
+                install_date_iso: installDateObj ? installDateObj.toISOString().slice(0, 10) : null,
+                install_status: p.install_status,
+                status: p.status,
+                days: p.days ?? 0,
+                sort_date_ms: installDateObj ? installDateObj.getTime() : null,
+            };
+        });
+
+        const filtered = normalized.filter((item) => {
+            if (dateFrom || dateTo) {
+                if (!item.sort_date_ms) return false;
+                const d = new Date(item.sort_date_ms);
+                if (dateFrom && d < dateFrom) return false;
+                if (dateTo && d >= dateTo) return false;
+            }
+
+            if (plateCountFilter !== null && Number.isFinite(plateCountFilter)) {
+                if (item.plate_count !== plateCountFilter) return false;
+            }
+
+            if (platePowerFilter !== null && Number.isFinite(platePowerFilter)) {
+                if (item.plate_power_w !== platePowerFilter) return false;
+            }
+
+            return true;
+        });
+
+        filtered.sort((a, b) => {
+            if (a.sort_date_ms !== null && b.sort_date_ms !== null) return a.sort_date_ms - b.sort_date_ms;
+            if (a.sort_date_ms !== null) return -1;
+            if (b.sort_date_ms !== null) return 1;
+            return (b.days || 0) - (a.days || 0);
+        });
+
+        const branches = [...new Set(normalized.map(p => p.branch).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+        const plateCounts = [...new Set(normalized.map(p => p.plate_count).filter(v => Number.isFinite(v)))].sort((a, b) => a - b);
+        const platePowers = [...new Set(normalized.map(p => p.plate_power_w).filter(v => Number.isFinite(v)))].sort((a, b) => a - b);
+
+        const totalProjects = filtered.length;
+        const totalPlates = filtered.reduce((acc, item) => acc + (item.plate_count || 0), 0);
+        const totalPowerKw = Number(filtered.reduce((acc, item) => acc + (item.plate_total_power_kw || 0), 0).toFixed(3));
+
+        res.json({
+            lastSync: lastSuccessfulSync,
+            filters: {
+                branches,
+                plateCounts,
+                platePowers
+            },
+            totals: {
+                totalProjects,
+                totalPlates,
+                totalPowerKw
+            },
+            entries: filtered
+        });
+    } catch (error) {
+        console.error('Error fetching plates dashboard:', error);
         res.status(500).json({ error: error.message });
     }
 });

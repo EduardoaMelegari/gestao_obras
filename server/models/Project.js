@@ -38,6 +38,22 @@ const Project = sequelize.define('Project', {
     external_id: {
         type: DataTypes.STRING,
     },
+    plate_number: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    plate_count: {
+        type: DataTypes.INTEGER,
+        allowNull: true
+    },
+    plate_power_w: {
+        type: DataTypes.FLOAT,
+        allowNull: true
+    },
+    plate_total_power_kw: {
+        type: DataTypes.FLOAT,
+        allowNull: true
+    },
     // Vistoria Fields
     vistoria_status: {
         type: DataTypes.STRING,

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Dashboard from './components/Dashboard';
 import Projects from './components/Projects';
+import PlateNumbers from './components/PlateNumbers';
 import Sidebar from './components/Sidebar';
 import Vistoria from './components/Vistoria';
 import AlertsCenter from './components/AlertsCenter';
@@ -67,6 +68,7 @@ function AppContent() {
         }}>
           {activePage === 'dashboard' && <Dashboard />}
           {activePage === 'projects' && <Projects />}
+          {activePage === 'plate_numbers' && <PlateNumbers />}
           {activePage === 'vistoria' && <Vistoria />}
           {activePage === 'alertas' && <AlertsCenter />}
         </div>

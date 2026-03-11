@@ -28,7 +28,12 @@ const COLUMN_CONFIG = {
     'STATUS APP': { names: ['STATUS APP'], index: -1 },
     'DATA 2° SOLITAÇÃO VISTORIA': { names: ['DATA 2° SOLITAÇÃO VISTORIA', 'DATA 2 SOLICITACAO VISTORIA'], index: -1 },
     'PRIORIDADE': { names: ['PRIORIDADE'], index: -1 },
-    'DATA PROTOCOLO': { names: ['DATA PROTOCOLO'], index: -1 }
+    'DATA PROTOCOLO': { names: ['DATA PROTOCOLO'], index: -1 },
+
+    // Plate Tracking (Installation sheet)
+    'NUMERO': { names: ['NUMERO', 'NÚMERO'], index: -1 },
+    'QNTD. PLACAS': { names: ['QNTD. PLACAS', 'QTD. PLACAS', 'QTD PLACAS', 'QUANTIDADE DE PLACAS'], index: -1 },
+    'POTÊNCIA PLACA (W)': { names: ['POTÊNCIA PLACA (W)', 'POTENCIA PLACA (W)', 'POTÊNCIA PLACA', 'POTENCIA PLACA'], index: -1 }
 };
 
 export default COLUMN_CONFIG;

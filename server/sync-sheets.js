@@ -88,7 +88,8 @@ const PROJECT_IGNORE = [
     'TEMPO ELABORAÇÃO O.S', 'TEMPO ELABORAÇÃO O.S CONTINUO', 'PRIORIDADE',
     'STATUS VISTORIA', 'DATA SOLITAÇÃO VISTORIA',
     'TEM INVERSOR', 'PRAZO', 'STATUS MEDIDOR', 'STATUS APP', 'DATA 2° SOLITAÇÃO VISTORIA',
-    'ID PROJETO', 'DATA INSTALAÇÃO', 'PARECER VISTORIA'
+    'ID PROJETO', 'DATA INSTALAÇÃO', 'PARECER VISTORIA',
+    'NUMERO', 'QNTD. PLACAS', 'POTÊNCIA PLACA (W)'
 ];
 
 async function fetchAndParseCSV(url) {
@@ -159,6 +160,28 @@ function getValue(row, index) {
     return row[index] || '';
 }
 
+function parseNumber(value) {
+    if (value === null || value === undefined) return null;
+    const text = String(value).trim();
+    if (!text) return null;
+
+    // Keep only numeric symbols, then normalize locale decimal separators.
+    const cleaned = text.replace(/[^0-9,.-]/g, '');
+    if (!cleaned) return null;
+
+    let normalized = cleaned;
+    if (cleaned.includes(',') && cleaned.includes('.')) {
+        normalized = cleaned.lastIndexOf(',') > cleaned.lastIndexOf('.')
+            ? cleaned.replace(/\./g, '').replace(',', '.')
+            : cleaned.replace(/,/g, '');
+    } else if (cleaned.includes(',')) {
+        normalized = cleaned.replace(',', '.');
+    }
+
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
 async function syncSheets() {
 
     let allProjects = [];
@@ -213,6 +236,13 @@ async function syncSheets() {
 
             const protocolDateStr = getData('DATA PROTOCOLO');
             const daysSinceProtocol = daysSince(protocolDateStr);
+            const plateNumber = getData('NUMERO');
+            const plateCountNumber = parseNumber(getData('QNTD. PLACAS'));
+            const plateCount = plateCountNumber === null ? null : Math.round(plateCountNumber);
+            const platePowerW = parseNumber(getData('POTÊNCIA PLACA (W)'));
+            const plateTotalPowerKw = (plateCount !== null && platePowerW !== null)
+                ? Number(((plateCount * platePowerW) / 1000).toFixed(3))
+                : null;
 
             // Calculate days for Vistoria if active (TODAY - DATA SOLITAÇÃO VISTORIA)
             if (status === 'COMPLETED' && vistoriaDateStr) {
@@ -229,6 +259,10 @@ async function syncSheets() {
                 team: getData('EQUIPE INSTALAÇÃO'),
                 details: getData('OBSERVAÇÃO DA INSTALAÇÃO') || getData('OBSERVAÇÃO'),
                 external_id: getData('ID PROJETO'),
+                plate_number: plateNumber,
+                plate_count: plateCount,
+                plate_power_w: platePowerW,
+                plate_total_power_kw: plateTotalPowerKw,
                 vistoria_status: vistoriaStatus,
                 vistoria_date: vistoriaDateStr,
                 vistoria_deadline: null,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import './Sidebar.css';
 
 const Sidebar = ({ activePage, onNavigate, isExpanded, onToggle }) => {
@@ -29,6 +29,15 @@ const Sidebar = ({ activePage, onNavigate, isExpanded, onToggle }) => {
                 >
                     <span className="icon">🏗️</span>
                     {isExpanded && <span className="label">Projetos</span>}
+                </div>
+
+                <div
+                    className={`nav-item ${activePage === 'plate_numbers' ? 'active' : ''}`}
+                    onClick={() => onNavigate('plate_numbers')}
+                    title="Número de placas"
+                >
+                    <span className="icon">🔢</span>
+                    {isExpanded && <span className="label">Número de placas</span>}
                 </div>
 
                 <div
