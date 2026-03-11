@@ -9,7 +9,6 @@ import './theme-v2.css';
 
 // Hidden admin panel — accessible only via /#admin in the URL
 const isAdminRoute = window.location.hash === '#admin';
-const API_BASE = 'http://localhost:36006';
 
 // Hook to check server version and force reload if changed
 function useVersionCheck() {
@@ -17,7 +16,7 @@ function useVersionCheck() {
 
   useEffect(() => {
     // Initial check
-    fetch(`${API_BASE}/api/version`)
+    fetch('/api/version')
       .then(res => res.json())
       .then(data => {
         versionRef.current = data.version;
@@ -27,7 +26,7 @@ function useVersionCheck() {
 
     // Periodic check
     const interval = setInterval(() => {
-      fetch(`${API_BASE}/api/version`)
+      fetch('/api/version')
         .then(res => res.json())
         .then(data => {
           if (versionRef.current && data.version !== versionRef.current) {

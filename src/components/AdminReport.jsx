@@ -78,7 +78,7 @@ const AdminReport = () => {
     const handleForceRefresh = async () => {
         if (!confirm('ATENÇÃO: Isso forçará o recarregamento da página em TODOS os dispositivos conectados. Continuar?')) return;
         try {
-            const res = await fetch('http://localhost:36006/api/admin/reset-version', { method: 'POST' });
+            const res = await fetch('/api/admin/reset-version', { method: 'POST' });
             if (res.ok) alert('Comando de atualização enviado com sucesso!');
             else alert('Erro ao enviar comando.');
         } catch (e) {
