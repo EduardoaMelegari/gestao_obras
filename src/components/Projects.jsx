@@ -204,6 +204,43 @@ const Projects = () => {
         return status === 'protocolado';
     }).sort((a, b) => (b.days_since_protocol || 0) - (a.days_since_protocol || 0));
 
+    const ampliacao_analiseCircuito = allProjectsPool.filter(p => {
+        if (!isAmpliacaoCategory(p)) return false;
+        const parecer = (p.vistoria_opinion || '').toLowerCase();
+        return parecer.includes('análise de circuito') ||
+               parecer.includes('analise de circuito') ||
+               parecer.includes('obra 60d') ||
+               parecer.includes('obra 120d');
+    }).sort((a, b) => {
+        const getDeadlineDate = (item) => {
+            const parecer = (item.vistoria_opinion || '').toLowerCase();
+            const baseDateStr = item.protocol_date || item.install_date;
+
+            if (!baseDateStr) return new Date(8640000000000000);
+
+            let startDate = null;
+            if (baseDateStr.includes('/')) {
+                const parts = baseDateStr.split('/');
+                if (parts.length === 3) startDate = new Date(parts[2], parts[1] - 1, parts[0]);
+            } else {
+                startDate = new Date(baseDateStr);
+            }
+
+            if (!startDate || isNaN(startDate.getTime())) return new Date(8640000000000000);
+
+            let days = 0;
+            if (parecer.includes('análise') || parecer.includes('analise')) days = 30;
+            else if (parecer.includes('obra 60d')) days = 60;
+            else if (parecer.includes('obra 120d')) days = 120;
+
+            const end = new Date(startDate);
+            end.setDate(end.getDate() + days);
+            return end;
+        };
+
+        return getDeadlineDate(a) - getDeadlineDate(b);
+    });
+
     const ampliacao_concluidos = allProjectsPool.filter(p => {
         if (!isAmpliacaoCategory(p)) return false;
         const status = (p.project_status || '').toLowerCase().trim();
@@ -429,6 +466,7 @@ const Projects = () => {
         { id: 'amp_pendentes', label: 'Ampliação - Pendentes (ART)', color: '#ca8a04' },
         { id: 'amp_energisa', label: 'Ampliação - Enviar Energisa', color: '#ea580c' },
         { id: 'amp_protocolados', label: 'Ampliação - Protocolados', color: '#b45309' },
+        { id: 'amp_analise', label: 'Ampliação - Análise de Circuito', color: '#7c3aed' },
         { id: 'amp_concluidos', label: 'Ampliação - Concluídos', color: '#78350f' },
     ];
 
@@ -648,6 +686,15 @@ const Projects = () => {
                         headerColor="#78350f"
                     />
                 );
+            case 'amp_analise':
+                return (
+                    <ProjectTable
+                        title="AMPLIAÇÃO - ANÁLISE DE CIRCUITO"
+                        columns={columnsAnalise}
+                        data={getFilteredData(ampliacao_analiseCircuito)}
+                        headerColor="#6d28d9"
+                    />
+                );
             case 'amp_concluidos':
                 return (
                     <ProjectTable
@@ -687,6 +734,8 @@ const Projects = () => {
                 return getFilteredData(ampliacao_energisa).length;
             case 'amp_protocolados':
                 return getFilteredData(ampliacao_protocolados).length;
+            case 'amp_analise':
+                return getFilteredData(ampliacao_analiseCircuito).length;
             case 'amp_concluidos':
                 return getFilteredData(ampliacao_concluidos).length;
             default:
