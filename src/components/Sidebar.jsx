@@ -36,7 +36,7 @@ const Sidebar = ({ activePage, onNavigate, isExpanded, onToggle }) => {
                     onClick={() => onNavigate('plate_numbers')}
                     title="Módulos"
                 >
-                    <span className="icon">☀️</span>
+                    <span className="icon">🔋</span>
                     {isExpanded && <span className="label">Módulos</span>}
                 </div>
 
