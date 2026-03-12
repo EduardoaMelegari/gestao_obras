@@ -11,6 +11,7 @@ const Vistoria = () => {
     const [selectedCities, setSelectedCities] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(true);
+    const [activeVistoriaTab, setActiveVistoriaTab] = useState('projetos');
 
     const hasSetDefaultFilter = React.useRef(false);
 
@@ -85,6 +86,23 @@ const Vistoria = () => {
     const filteredSolicitar = getFilteredData(vistoriaData.solicitar);
     const filteredSolicitadas = getFilteredData(vistoriaData.solicitadas);
     const filteredAtrasadas = getFilteredData(vistoriaData.atrasadas);
+
+    const isAmpliacaoItem = (item) => (item.category || '').toUpperCase().includes('AMPLIA');
+
+    const filterByVistoriaTab = (dataList) => {
+        if (activeVistoriaTab === 'ampliacao') return dataList.filter(isAmpliacaoItem);
+        return dataList.filter(item => !isAmpliacaoItem(item));
+    };
+
+    const tabCount = (tab) => {
+        const shouldBeAmpliacao = tab === 'ampliacao';
+        const countByTab = (dataList) => dataList.filter(item => isAmpliacaoItem(item) === shouldBeAmpliacao).length;
+        return countByTab(filteredSolicitar) + countByTab(filteredSolicitadas) + countByTab(filteredAtrasadas);
+    };
+
+    const visibleSolicitar = filterByVistoriaTab(filteredSolicitar);
+    const visibleSolicitadas = filterByVistoriaTab(filteredSolicitadas);
+    const visibleAtrasadas = filterByVistoriaTab(filteredAtrasadas);
 
     // ── Theme-aware color helpers ──────────────────────────────────────────
     const tc = {
@@ -220,9 +238,42 @@ const Vistoria = () => {
 
                 {/* Vistorias Detailed View Tables */}
                 <div style={{ marginTop: '40px', paddingBottom: '40px' }}>
-                    {renderTable("SOLICITAR VISTORIAS", filteredSolicitar, "#0B1B48", true)}
-                    {renderTable("VISTORIAS SOLICITADAS", filteredSolicitadas, "#0B1B48", true)}
-                    {renderTable("VISTORIAS ATRASADAS", filteredAtrasadas, "#B71C1C", true)}
+                    <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+                        <button
+                            onClick={() => setActiveVistoriaTab('projetos')}
+                            style={{
+                                padding: '8px 16px',
+                                backgroundColor: activeVistoriaTab === 'projetos' ? '#1d4ed8' : '#1e293b',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontWeight: 'bold',
+                                opacity: activeVistoriaTab === 'projetos' ? 1 : 0.75
+                            }}
+                        >
+                            Vistorias de Projetos ({tabCount('projetos')})
+                        </button>
+                        <button
+                            onClick={() => setActiveVistoriaTab('ampliacao')}
+                            style={{
+                                padding: '8px 16px',
+                                backgroundColor: activeVistoriaTab === 'ampliacao' ? '#b45309' : '#1e293b',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontWeight: 'bold',
+                                opacity: activeVistoriaTab === 'ampliacao' ? 1 : 0.75
+                            }}
+                        >
+                            Vistorias de Ampliação ({tabCount('ampliacao')})
+                        </button>
+                    </div>
+
+                    {renderTable(`${activeVistoriaTab === 'projetos' ? 'PROJETOS' : 'AMPLIAÇÃO'} - SOLICITAR VISTORIAS`, visibleSolicitar, "#0B1B48", true)}
+                    {renderTable(`${activeVistoriaTab === 'projetos' ? 'PROJETOS' : 'AMPLIAÇÃO'} - VISTORIAS SOLICITADAS`, visibleSolicitadas, "#0B1B48", true)}
+                    {renderTable(`${activeVistoriaTab === 'projetos' ? 'PROJETOS' : 'AMPLIAÇÃO'} - VISTORIAS ATRASADAS`, visibleAtrasadas, "#B71C1C", true)}
                 </div>
             </div>
         </div>

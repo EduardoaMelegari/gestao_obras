@@ -20,6 +20,7 @@ const Projects = () => {
     // Tab State
     const [activeTab, setActiveTab] = useState('elaboracao');
     const [protocoladosSubTab, setProtocoladosSubTab] = useState('clean'); // 'clean' or 'pendencias'
+    const [ampliacaoProtocoladosSubTab, setAmpliacaoProtocoladosSubTab] = useState('clean'); // 'clean' or 'pendencias'
     const [pendenciasSubTab, setPendenciasSubTab] = useState('ALL');
 
     const handleViewChange = (view) => {
@@ -198,11 +199,15 @@ const Projects = () => {
         return status.includes('mandar') && obs.includes('sm');
     }).sort((a, b) => (b.days_since_doc_conf || 0) - (a.days_since_doc_conf || 0));
 
-    const ampliacao_protocolados = allProjectsPool.filter(p => {
+    const ampliacao_protocoladosFiltered = allProjectsPool.filter(p => {
         if (!isAmpliacaoCategory(p)) return false;
         const status = (p.project_status || '').toLowerCase().trim();
         return status === 'protocolado';
     }).sort((a, b) => (b.days_since_protocol || 0) - (a.days_since_protocol || 0));
+
+    const ampliacao_protocoladosClean = ampliacao_protocoladosFiltered.filter(p => !p.details || !p.details.trim()).sort((a, b) => (b.days_since_protocol || 0) - (a.days_since_protocol || 0));
+
+    const ampliacao_protocoladosPendencias = ampliacao_protocoladosFiltered.filter(p => p.details && p.details.trim()).sort((a, b) => (b.days_since_protocol || 0) - (a.days_since_protocol || 0));
 
     const ampliacao_analiseCircuito = allProjectsPool.filter(p => {
         if (!isAmpliacaoCategory(p)) return false;
@@ -678,13 +683,47 @@ const Projects = () => {
                 );
             case 'amp_protocolados':
                 return (
+                    <div>
+                        <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+                            <button
+                                onClick={() => setAmpliacaoProtocoladosSubTab('clean')}
+                                style={{
+                                    padding: '8px 16px',
+                                    backgroundColor: ampliacaoProtocoladosSubTab === 'clean' ? '#b45309' : '#1e293b',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontWeight: 'bold',
+                                    opacity: ampliacaoProtocoladosSubTab === 'clean' ? 1 : 0.7
+                                }}
+                            >
+                                Protocolados ({getFilteredData(ampliacao_protocoladosClean).length})
+                            </button>
+                            <button
+                                onClick={() => setAmpliacaoProtocoladosSubTab('pendencias')}
+                                style={{
+                                    padding: '8px 16px',
+                                    backgroundColor: ampliacaoProtocoladosSubTab === 'pendencias' ? '#dc2626' : '#1e293b',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontWeight: 'bold',
+                                    opacity: ampliacaoProtocoladosSubTab === 'pendencias' ? 1 : 0.7
+                                }}
+                            >
+                                Com Pendências ({getFilteredData(ampliacao_protocoladosPendencias).length})
+                            </button>
+                        </div>
                     <ProjectTable
-                        title="AMPLIAÇÃO - PROTOCOLADOS"
+                        title={ampliacaoProtocoladosSubTab === 'clean' ? 'AMPLIAÇÃO - PROTOCOLADOS' : 'AMPLIAÇÃO - COM PENDÊNCIAS'}
                         columns={columnsProtocolados}
-                        data={getFilteredData(ampliacao_protocolados)}
-                        getRowClass={getRowClassInProgress}
-                        headerColor="#78350f"
+                        data={getFilteredData(ampliacaoProtocoladosSubTab === 'clean' ? ampliacao_protocoladosClean : ampliacao_protocoladosPendencias)}
+                        getRowClass={ampliacaoProtocoladosSubTab === 'clean' ? getRowClassInProgress : getRowClassProtocolados}
+                        headerColor={ampliacaoProtocoladosSubTab === 'clean' ? '#b45309' : '#dc2626'}
                     />
+                    </div>
                 );
             case 'amp_analise':
                 return (
@@ -733,7 +772,7 @@ const Projects = () => {
             case 'amp_energisa':
                 return getFilteredData(ampliacao_energisa).length;
             case 'amp_protocolados':
-                return getFilteredData(ampliacao_protocolados).length;
+                return getFilteredData(ampliacao_protocoladosClean).length + getFilteredData(ampliacao_protocoladosPendencias).length;
             case 'amp_analise':
                 return getFilteredData(ampliacao_analiseCircuito).length;
             case 'amp_concluidos':
