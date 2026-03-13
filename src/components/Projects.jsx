@@ -219,7 +219,7 @@ const Projects = () => {
     }).sort((a, b) => {
         const getDeadlineDate = (item) => {
             const parecer = (item.vistoria_opinion || '').toLowerCase();
-            const baseDateStr = item.protocol_date || item.install_date;
+            const baseDateStr = item.install_date;
 
             if (!baseDateStr) return new Date(8640000000000000);
 
@@ -262,7 +262,7 @@ const Projects = () => {
     }).sort((a, b) => {
         const getDeadlineDate = (item) => {
              const parecer = (item.vistoria_opinion || '').toLowerCase();
-             const baseDateStr = item.protocol_date || item.install_date;
+             const baseDateStr = item.install_date;
              
              // Default to far future if waiting/invalid
              if (!baseDateStr) return new Date(8640000000000000);
@@ -377,8 +377,8 @@ const Projects = () => {
                     return null;
                 };
 
-                // Use Protocol Date as primary source, fallback to Install Date
-                const baseDateStr = item.protocol_date || item.install_date;
+                // Use only initial work date (DATA INICIAL OBRA / install_date)
+                const baseDateStr = item.install_date;
                 if (!baseDateStr) return '-';
 
                 const startDate = parseDate(baseDateStr);
