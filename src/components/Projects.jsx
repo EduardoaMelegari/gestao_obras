@@ -103,7 +103,7 @@ const Projects = () => {
         loadData(selectedCities, selectedCategories, selectedSellers);
         const intervalId = setInterval(() => {
             loadData(selectedCities, selectedCategories, selectedSellers, true);
-        }, 10 * 1000);
+        }, 30 * 1000);
         return () => clearInterval(intervalId);
     }, [selectedCities, selectedCategories, selectedSellers, loadData]);
 

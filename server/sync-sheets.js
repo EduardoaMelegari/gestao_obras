@@ -8,6 +8,9 @@ import { sequelize } from './db.js';
 // Date utilities
 // ---------------------------------------------------------------------------
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
+const CSV_TIMEOUT_MS = Number(process.env.CSV_TIMEOUT_MS || 45000);
+const CSV_MAX_RETRIES = Number(process.env.CSV_MAX_RETRIES || 3);
+const CSV_RETRY_BASE_DELAY_MS = Number(process.env.CSV_RETRY_BASE_DELAY_MS || 1500);
 
 /** Parse a date string in DD/MM/YYYY or any JS-parseable format. Returns null if invalid. */
 function parseDateStr(str) {
@@ -93,20 +96,49 @@ const PROJECT_IGNORE = [
 ];
 
 async function fetchAndParseCSV(url) {
-    try {
-        const response = await axios.get(url, { timeout: 30000 });
-        return new Promise((resolve, reject) => {
-            Papa.parse(response.data, {
-                header: false, // Changed to false to get raw rows
-                skipEmptyLines: true,
-                complete: (results) => resolve(results.data),
-                error: (err) => reject(err)
-            });
+    const response = await axios.get(url, { timeout: CSV_TIMEOUT_MS });
+    return new Promise((resolve, reject) => {
+        Papa.parse(response.data, {
+            header: false, // Changed to false to get raw rows
+            skipEmptyLines: true,
+            complete: (results) => resolve(results.data),
+            error: (err) => reject(err)
         });
-    } catch (error) {
-        console.error(`Error fetching CSV from ${url}:`, error.message);
-        return [];
+    });
+}
+
+function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchSheetRowsWithRetry(sheet) {
+    let lastError = null;
+
+    for (let attempt = 1; attempt <= CSV_MAX_RETRIES; attempt++) {
+        try {
+            const rawRows = await fetchAndParseCSV(sheet.url);
+            if (!rawRows || rawRows.length === 0) {
+                throw new Error('Empty CSV response');
+            }
+
+            if (attempt > 1) {
+                console.log(`[sync] ${sheet.city}/${sheet.type} recovered on attempt ${attempt}/${CSV_MAX_RETRIES}.`);
+            }
+
+            return rawRows;
+        } catch (error) {
+            lastError = error;
+            const message = error?.message || 'Unknown error';
+            console.error(`[sync] Failed to fetch ${sheet.city}/${sheet.type} (attempt ${attempt}/${CSV_MAX_RETRIES}): ${message}`);
+
+            if (attempt < CSV_MAX_RETRIES) {
+                const delay = CSV_RETRY_BASE_DELAY_MS * attempt;
+                await sleep(delay);
+            }
+        }
     }
+
+    throw new Error(lastError?.message || 'Unknown error');
 }
 
 function resolveColumnIndices(headers, config, sheetType) {
@@ -183,123 +215,131 @@ function parseNumber(value) {
 }
 
 async function syncSheets() {
-
-    let allProjects = [];
+    const allProjects = [];
+    const failedSheets = [];
 
     for (const sheet of SHEETS_CONFIG) {
-        const rawRows = await fetchAndParseCSV(sheet.url);
+        try {
+            const rawRows = await fetchSheetRowsWithRetry(sheet);
+            const headers = rawRows[0];
+            const dataRows = rawRows.slice(1);
+            const colMap = resolveColumnIndices(headers, COLUMN_CONFIG, sheet.type);
 
-        if (rawRows.length === 0) continue;
+            const validRows = dataRows.map(row => {
+                const getData = (key) => getValue(row, colMap[key]);
 
-        const headers = rawRows[0];
-        const dataRows = rawRows.slice(1);
-        const colMap = resolveColumnIndices(headers, COLUMN_CONFIG, sheet.type);
+                const clientName = getData('CLIENTE');
+                if (!clientName || clientName === 'Desconhecido') return null;
 
-        const validRows = dataRows.map(row => {
-            const getData = (key) => getValue(row, colMap[key]);
+                // Reconstruct object for determineStatus
+                const rowObj = {
+                    'STATUS INSTALAÇÃO': getData('STATUS INSTALAÇÃO'),
+                    'PRIORIDADE': getData('PRIORIDADE'),
+                    'MATERIAL ENTREGUE P/ EQUIPE INSTALAÇÃO?': getData('MATERIAL ENTREGUE P/ EQUIPE INSTALAÇÃO?'),
+                    'O.S EMITIDA?': getData('O.S EMITIDA?'),
+                    'EQUIPE INSTALAÇÃO': getData('EQUIPE INSTALAÇÃO'),
+                    'DATA PAGAMENTO': getData('DATA PAGAMENTO'),
+                    'STATUS PROJETO': getData('STATUS PROJETO')
+                };
 
-            const clientName = getData('CLIENTE');
-            if (!clientName || clientName === 'Desconhecido') return null;
+                const status = determineStatus(rowObj, sheet.type);
+                if (!status) return null;
 
-            // Reconstruct object for determineStatus
-            const rowObj = {
-                'STATUS INSTALAÇÃO': getData('STATUS INSTALAÇÃO'),
-                'PRIORIDADE': getData('PRIORIDADE'),
-                'MATERIAL ENTREGUE P/ EQUIPE INSTALAÇÃO?': getData('MATERIAL ENTREGUE P/ EQUIPE INSTALAÇÃO?'),
-                'O.S EMITIDA?': getData('O.S EMITIDA?'),
-                'EQUIPE INSTALAÇÃO': getData('EQUIPE INSTALAÇÃO'),
-                'DATA PAGAMENTO': getData('DATA PAGAMENTO'),
-                'STATUS PROJETO': getData('STATUS PROJETO')
-            };
+                // For STOPPED projects, determine which workflow stage they were at
+                const stoppedStage = status === 'STOPPED' ? determineStoppedStage(rowObj) : null;
 
-            const status = determineStatus(rowObj, sheet.type);
-            if (!status) return null;
+                let days = parseInt(getData('TEMPO ELABORAÇÃO O.S CONTINUO') || getData('TEMPO ELABORAÇÃO O.S') || 0);
+                if (isNaN(days)) days = 0;
 
-            // For STOPPED projects, determine which workflow stage they were at
-            const stoppedStage = status === 'STOPPED' ? determineStoppedStage(rowObj) : null;
+                // Calculate days since payment for GENERATE_OS
+                if (status === 'GENERATE_OS') {
+                    days = daysSince(getData('DATA PAGAMENTO')) ?? days;
+                }
 
-            let days = parseInt(getData('TEMPO ELABORAÇÃO O.S CONTINUO') || getData('TEMPO ELABORAÇÃO O.S') || 0);
-            if (isNaN(days)) days = 0;
+                // Vistoria Date & Status
+                const vistoriaStatus = getData('STATUS VISTORIA');
+                const vistoriaDateStr = getData('DATA SOLITAÇÃO VISTORIA');
 
-            // Calculate days since payment for GENERATE_OS
-            if (status === 'GENERATE_OS') {
-                days = daysSince(getData('DATA PAGAMENTO')) ?? days;
-            }
+                // Doc Conference & Protocol date calculations use the shared helper
+                const docConfDateStr = getData('DATA FINALIZAÇÃO CONF.');
+                const daysSinceDocConf = daysSince(docConfDateStr);
 
-            // Vistoria Date & Status
-            const vistoriaStatus = getData('STATUS VISTORIA');
-            const vistoriaDateStr = getData('DATA SOLITAÇÃO VISTORIA');
+                const protocolDateStr = getData('DATA PROTOCOLO');
+                const daysSinceProtocol = daysSince(protocolDateStr);
+                const plateNumber = getData('NUMERO');
+                const plateCountNumber = parseNumber(getData('QNTD. PLACAS'));
+                const plateCount = plateCountNumber === null ? null : Math.round(plateCountNumber);
+                const platePowerW = parseNumber(getData('POTÊNCIA PLACA (W)'));
+                const plateTotalPowerKw = (plateCount !== null && platePowerW !== null)
+                    ? Number(((plateCount * platePowerW) / 1000).toFixed(3))
+                    : null;
 
-            // Doc Conference & Protocol date calculations use the shared helper
-            const docConfDateStr = getData('DATA FINALIZAÇÃO CONF.');
-            const daysSinceDocConf = daysSince(docConfDateStr);
+                // Calculate days for Vistoria if active (TODAY - DATA SOLITAÇÃO VISTORIA)
+                if (status === 'COMPLETED' && vistoriaDateStr) {
+                    days = daysSince(vistoriaDateStr) ?? days;
+                }
 
-            const protocolDateStr = getData('DATA PROTOCOLO');
-            const daysSinceProtocol = daysSince(protocolDateStr);
-            const plateNumber = getData('NUMERO');
-            const plateCountNumber = parseNumber(getData('QNTD. PLACAS'));
-            const plateCount = plateCountNumber === null ? null : Math.round(plateCountNumber);
-            const platePowerW = parseNumber(getData('POTÊNCIA PLACA (W)'));
-            const plateTotalPowerKw = (plateCount !== null && platePowerW !== null)
-                ? Number(((plateCount * platePowerW) / 1000).toFixed(3))
-                : null;
+                return {
+                    client: clientName,
+                    status: status,
+                    project_status: getData('STATUS PROJETO'),
+                    category: getData('CATEGORIA'),
+                    days: days,
+                    city: sheet.city,
+                    team: getData('EQUIPE INSTALAÇÃO'),
+                    details: getData('OBSERVAÇÃO DA INSTALAÇÃO') || getData('OBSERVAÇÃO'),
+                    external_id: getData('ID PROJETO'),
+                    plate_number: plateNumber,
+                    plate_count: plateCount,
+                    plate_power_w: platePowerW,
+                    plate_total_power_kw: plateTotalPowerKw,
+                    vistoria_status: vistoriaStatus,
+                    vistoria_date: vistoriaDateStr,
+                    vistoria_deadline: null,
+                    // New Fields
+                    seller: getData('VENDEDOR'),
+                    folder: getData('PASTA'),
+                    install_date: getData('DATA INSTALAÇÃO'),
+                    has_inverter: getData('TEM INVERSOR'),
+                    deadline: getData('PRAZO'),
+                    vistoria_opinion: getData('PARECER VISTORIA'),
+                    meter_status: getData('STATUS MEDIDOR'),
+                    app_status: getData('STATUS APP'),
+                    vistoria_2nd_date: getData('DATA 2° SOLITAÇÃO VISTORIA'),
+                    days_since_doc_conf: daysSinceDocConf,
+                    doc_conf_date: docConfDateStr,
+                    protocol_date: protocolDateStr,
+                    days_since_protocol: daysSinceProtocol,
+                    install_status: getData('STATUS INSTALAÇÃO'),
+                    stopped_stage: stoppedStage
+                };
+            }).filter(p => p !== null);
 
-            // Calculate days for Vistoria if active (TODAY - DATA SOLITAÇÃO VISTORIA)
-            if (status === 'COMPLETED' && vistoriaDateStr) {
-                days = daysSince(vistoriaDateStr) ?? days;
-            }
-
-            return {
-                client: clientName,
-                status: status,
-                project_status: getData('STATUS PROJETO'),
-                category: getData('CATEGORIA'),
-                days: days,
-                city: sheet.city,
-                team: getData('EQUIPE INSTALAÇÃO'),
-                details: getData('OBSERVAÇÃO DA INSTALAÇÃO') || getData('OBSERVAÇÃO'),
-                external_id: getData('ID PROJETO'),
-                plate_number: plateNumber,
-                plate_count: plateCount,
-                plate_power_w: platePowerW,
-                plate_total_power_kw: plateTotalPowerKw,
-                vistoria_status: vistoriaStatus,
-                vistoria_date: vistoriaDateStr,
-                vistoria_deadline: null,
-                // New Fields
-                seller: getData('VENDEDOR'),
-                folder: getData('PASTA'),
-                install_date: getData('DATA INSTALAÇÃO'),
-                has_inverter: getData('TEM INVERSOR'),
-                deadline: getData('PRAZO'),
-                vistoria_opinion: getData('PARECER VISTORIA'),
-                meter_status: getData('STATUS MEDIDOR'),
-                app_status: getData('STATUS APP'),
-                vistoria_2nd_date: getData('DATA 2° SOLITAÇÃO VISTORIA'),
-                days_since_doc_conf: daysSinceDocConf,
-                doc_conf_date: docConfDateStr,
-                protocol_date: protocolDateStr,
-                days_since_protocol: daysSinceProtocol,
-                install_status: getData('STATUS INSTALAÇÃO'),
-                stopped_stage: stoppedStage
-            };
-        }).filter(p => p !== null);
-
-        allProjects.push(...validRows);
+            allProjects.push(...validRows);
+        } catch (error) {
+            console.error(`Error fetching CSV from ${sheet.url}:`, error.message);
+            failedSheets.push(`${sheet.city}/${sheet.type}`);
+        }
     }
 
-    if (allProjects.length > 0) {
-        // Use a transaction so that if bulkCreate fails, the data is NOT lost
-        const t = await sequelize.transaction();
-        try {
-            await Project.destroy({ where: {}, truncate: true, transaction: t });
-            await Project.bulkCreate(allProjects, { transaction: t });
-            await t.commit();
-        } catch (err) {
-            await t.rollback();
-            console.error('[sync] Transaction rolled back, database preserved:', err.message);
-            throw err;
-        }
+    if (failedSheets.length > 0) {
+        throw new Error(`[sync] Sync aborted. ${failedSheets.length} sheet(s) failed: ${failedSheets.join(', ')}`);
+    }
+
+    if (allProjects.length === 0) {
+        throw new Error('[sync] Sync aborted. No valid rows were parsed from sheets.');
+    }
+
+    // Use a transaction so that if bulkCreate fails, the data is NOT lost
+    const t = await sequelize.transaction();
+    try {
+        await Project.destroy({ where: {}, truncate: true, transaction: t });
+        await Project.bulkCreate(allProjects, { transaction: t });
+        await t.commit();
+    } catch (err) {
+        await t.rollback();
+        console.error('[sync] Transaction rolled back, database preserved:', err.message);
+        throw err;
     }
 }
 

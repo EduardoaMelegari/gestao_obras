@@ -118,7 +118,7 @@ const PlateNumbers = () => {
 
     useEffect(() => {
         loadData();
-        const intervalId = setInterval(() => loadData(true), 10000);
+        const intervalId = setInterval(() => loadData(true), 30000);
         return () => clearInterval(intervalId);
     }, [loadData]);
 

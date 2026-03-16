@@ -285,7 +285,160 @@ function addDays(date, days) {
 }
 
 // Tracks the timestamp of the last successful Google Sheets → DB sync
+function toPlainProject(project) {
+    if (project && typeof project.get === 'function') {
+        return project.get({ plain: true });
+    }
+    return project;
+}
+
+function daysSinceDateString(value) {
+    const parsed = parseDateString(value);
+    if (!parsed) return null;
+
+    const today = new Date();
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const parsedStart = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+    const diffMs = todayStart.getTime() - parsedStart.getTime();
+    return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+}
+
+function isAmpliacaoProject(project) {
+    return String(project?.category || '').toUpperCase().includes('AMPLIA');
+}
+
+function resolveAmpliacaoVistoriaDays(project) {
+    const vistoriaStatus = String(project?.vistoria_status || '').trim().toUpperCase();
+    if (vistoriaStatus === 'SOLICITADO') {
+        const byVistoriaDate = daysSinceDateString(project?.vistoria_date);
+        if (byVistoriaDate !== null) return byVistoriaDate;
+    }
+
+    const byInstallDate = daysSinceDateString(project?.install_date);
+    if (byInstallDate !== null) return byInstallDate;
+
+    const byDocConfDate = daysSinceDateString(project?.doc_conf_date);
+    if (byDocConfDate !== null) return byDocConfDate;
+
+    const fallbackDays = Number(project?.days);
+    return Number.isFinite(fallbackDays) ? fallbackDays : 0;
+}
+
+function normalizeVistoriaItems(list = []) {
+    return list.map((item) => {
+        const plain = toPlainProject(item);
+        if (!isAmpliacaoProject(plain)) return plain;
+        return {
+            ...plain,
+            days: resolveAmpliacaoVistoriaDays(plain),
+        };
+    });
+}
+
+function buildVistoriaDedupKey(project) {
+    const city = normalizeSortText(project?.city);
+    const folder = normalizeSortText(project?.folder);
+    if (folder) return `FOLDER:${folder}|CITY:${city}`;
+
+    const externalId = normalizeSortText(project?.external_id);
+    if (externalId) return `EXTERNAL:${externalId}|CITY:${city}`;
+
+    const client = normalizeSortText(project?.client);
+    const vistoriaDate = normalizeSortText(project?.vistoria_date);
+    const installDate = normalizeSortText(project?.install_date);
+    return `CLIENT:${client}|CITY:${city}|VIST:${vistoriaDate}|INST:${installDate}`;
+}
+
+function scoreVistoriaRecord(project) {
+    let score = 0;
+    if (normalizeSortText(project?.folder)) score += 2;
+    if (normalizeSortText(project?.external_id)) score += 2;
+    if (normalizeSortText(project?.vistoria_date)) score += 1;
+    if (normalizeSortText(project?.install_date)) score += 1;
+    if (normalizeSortText(project?.doc_conf_date)) score += 1;
+    return score;
+}
+
+function shouldReplaceVistoriaRecord(current, next) {
+    if (next?.status === 'PROJECT' && current?.status !== 'PROJECT') return true;
+    if (current?.status === 'PROJECT' && next?.status !== 'PROJECT') return false;
+
+    const currentScore = scoreVistoriaRecord(current);
+    const nextScore = scoreVistoriaRecord(next);
+    if (nextScore !== currentScore) return nextScore > currentScore;
+
+    const currentUpdated = current?.updatedAt ? new Date(current.updatedAt).getTime() : 0;
+    const nextUpdated = next?.updatedAt ? new Date(next.updatedAt).getTime() : 0;
+    return nextUpdated > currentUpdated;
+}
+
+function dedupeVistoriaItems(list = []) {
+    const map = new Map();
+
+    for (const item of list) {
+        const key = buildVistoriaDedupKey(item);
+        if (!map.has(key)) {
+            map.set(key, item);
+            continue;
+        }
+
+        const current = map.get(key);
+        if (shouldReplaceVistoriaRecord(current, item)) {
+            map.set(key, item);
+        }
+    }
+
+    return Array.from(map.values());
+}
+
+const SYNC_INTERVAL_MS = Number(process.env.SYNC_INTERVAL_MS || 60_000);
 let lastSuccessfulSync = null;
+let syncInProgress = false;
+
+function normalizeSortText(value) {
+    return String(value ?? '').trim().toLowerCase();
+}
+
+function compareProjectsStable(a, b) {
+    const dayA = Number.isFinite(Number(a?.days)) ? Number(a.days) : 0;
+    const dayB = Number.isFinite(Number(b?.days)) ? Number(b.days) : 0;
+
+    if (dayB !== dayA) return dayB - dayA;
+
+    const keys = ['client', 'city', 'seller', 'folder', 'external_id', 'team', 'status'];
+    for (const key of keys) {
+        const valueA = normalizeSortText(a?.[key]);
+        const valueB = normalizeSortText(b?.[key]);
+        if (valueA !== valueB) {
+            return valueA.localeCompare(valueB, 'pt-BR', { sensitivity: 'base' });
+        }
+    }
+
+    return 0;
+}
+
+function sortProjectsStable(list = []) {
+    return [...list].sort(compareProjectsStable);
+}
+
+async function runSheetsSync(trigger = 'auto') {
+    if (syncInProgress) {
+        console.log(`[sync] Skipping ${trigger} trigger because another sync is still running.`);
+        return false;
+    }
+
+    syncInProgress = true;
+    try {
+        await syncSheets();
+        lastSuccessfulSync = new Date();
+        return true;
+    } catch (err) {
+        console.error(`[sync] ${trigger} sync failed:`, err.message);
+        return false;
+    } finally {
+        syncInProgress = false;
+    }
+}
 
 // API Routes
 app.get('/api/dashboard', async (req, res) => {
@@ -306,11 +459,11 @@ app.get('/api/dashboard', async (req, res) => {
         const grouped = { GENERATE_OS: [], PRIORITY: [], TO_DELIVER: [], DELIVERED: [], IN_EXECUTION: [] };
         allWorkflow.forEach(p => { if (grouped[p.status]) grouped[p.status].push(p); });
 
-        const generateOS = grouped.GENERATE_OS;
-        const priorities = grouped.PRIORITY;
-        const toDeliver = grouped.TO_DELIVER;
-        const delivered = grouped.DELIVERED;
-        const inExecution = grouped.IN_EXECUTION;
+        const generateOS = sortProjectsStable(grouped.GENERATE_OS);
+        const priorities = sortProjectsStable(grouped.PRIORITY);
+        const toDeliver = sortProjectsStable(grouped.TO_DELIVER);
+        const delivered = sortProjectsStable(grouped.DELIVERED);
+        const inExecution = sortProjectsStable(grouped.IN_EXECUTION);
 
         const cities = allCities.map(c => c.city).filter(Boolean);
         const categories = allCategories.map(c => c.category).filter(Boolean);
@@ -370,8 +523,16 @@ app.get('/api/dashboard', async (req, res) => {
             }),
         ]);
 
-        const vistoriaSolicitar = [...vistoriaSolicitarCompleted, ...vistoriaSolicitarAmpliacao].sort((a, b) => (b.days || 0) - (a.days || 0));
-        const allSolicitadas = [...allSolicitadasCompleted, ...allSolicitadasAmpliacao].sort((a, b) => (b.days || 0) - (a.days || 0));
+        const vistoriaSolicitar = sortProjectsStable(
+            dedupeVistoriaItems(
+                normalizeVistoriaItems([...vistoriaSolicitarCompleted, ...vistoriaSolicitarAmpliacao])
+            )
+        );
+        const allSolicitadas = sortProjectsStable(
+            dedupeVistoriaItems(
+                normalizeVistoriaItems([...allSolicitadasCompleted, ...allSolicitadasAmpliacao])
+            )
+        );
 
         const vistoriaSolicitadas = allSolicitadas.filter(p => p.days <= 7);
         const vistoriaAtrasadas = allSolicitadas.filter(p => p.days > 7);
@@ -405,7 +566,15 @@ app.get('/api/dashboard', async (req, res) => {
 
 app.post('/api/sync', async (req, res) => {
     try {
-        await syncSheets();
+        if (syncInProgress) {
+            return res.status(409).json({ error: 'Sync already in progress' });
+        }
+
+        const synced = await runSheetsSync('manual');
+        if (!synced) {
+            return res.status(500).json({ error: 'Failed to sync data' });
+        }
+
         res.json({ success: true, message: 'Data synced successfully' });
     } catch (error) {
         console.error('Sync error:', error);
@@ -662,19 +831,12 @@ async function start() {
         console.log('Database synced');
 
         // Initial Data Load
-        syncSheets()
-            .then(() => { lastSuccessfulSync = new Date(); })
-            .catch(err => console.error('Initial sync failed:', err));
+        runSheetsSync('initial');
 
-        // Auto-Sync every 10 seconds
-        setInterval(async () => {
-            try {
-                await syncSheets();
-                lastSuccessfulSync = new Date();
-            } catch (err) {
-                console.error('Auto-sync failed:', err);
-            }
-        }, 10 * 1000);
+        // Auto-Sync (default 60s, configurable via SYNC_INTERVAL_MS)
+        setInterval(() => {
+            runSheetsSync('auto');
+        }, SYNC_INTERVAL_MS);
 
         app.listen(PORT, '0.0.0.0', () => {
             console.log(`Server running on http://0.0.0.0:${PORT}`);

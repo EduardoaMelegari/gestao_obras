@@ -42,7 +42,7 @@ const Parados = ({ searchTerm = '', selectedCities = [], selectedSellers = [] })
 
     useEffect(() => {
         loadData();
-        const id = setInterval(() => loadData(true), 10_000);
+        const id = setInterval(() => loadData(true), 30_000);
         return () => clearInterval(id);
     }, [loadData]);
 

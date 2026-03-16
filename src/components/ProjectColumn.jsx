@@ -39,10 +39,6 @@ const ProjectColumn = ({ title, secondTitle, thirdTitle, data, type, emptyMessag
             {/* Pagination / Footer of the list */}
             <div className="list-footer">
                 <span>1 - {data.length}/{data.length}</span>
-                <div className="pagination-arrows">
-                    <span>&lt;</span>
-                    <span>&gt;</span>
-                </div>
             </div>
         </div>
     );

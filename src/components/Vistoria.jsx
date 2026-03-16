@@ -48,10 +48,10 @@ const Vistoria = () => {
     useEffect(() => {
         loadData(selectedCities); // Initial (shows loading)
 
-        // Refresh UI every 10 seconds to catch new data (Silent)
+        // Refresh UI every 30 seconds to reduce visual jumps during sync windows
         const intervalId = setInterval(() => {
             loadData(selectedCities, true);
-        }, 10 * 1000);
+        }, 30 * 1000);
 
         return () => clearInterval(intervalId); // Cleanup on unmount
     }, [selectedCities, loadData]);
