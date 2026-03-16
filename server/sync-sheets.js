@@ -81,7 +81,7 @@ const SHEETS_CONFIG = [
 const INSTALLATION_IGNORE = [
     'TEM INVERSOR', 'PRAZO', 'PARECER VISTORIA', 'DATA 2° SOLITAÇÃO VISTORIA',
     'DATA INSTALAÇÃO', 'STATUS PROJETO', 'STATUS MEDIDOR', 'STATUS APP', 'PRIORIDADE',
-    'DATA FINALIZAÇÃO CONF.', 'ART EMITIDA?', 'OBSERVAÇÃO CONF.', 'DATA PROTOCOLO', 'DATA FINAL PREVISTA', 'DATA INICIAL OBRA', 'INSTALADOR', 'DATA VISTORIA', 'REVISADO E PROTOCOLADO'
+    'DATA FINALIZAÇÃO CONF.', 'STATUS CONF. DOC.', 'ART EMITIDA?', 'OBSERVAÇÃO CONF.', 'DATA PROTOCOLO', 'DATA FINAL PREVISTA', 'DATA INICIAL OBRA', 'INSTALADOR', 'DATA VISTORIA', 'REVISADO E PROTOCOLADO'
 ];
 
 // Columns to ignore warnings for in Project Sheets
@@ -160,6 +160,13 @@ function resolveColumnIndices(headers, config, sheetType) {
                     const lastIdx = headerUpper.lastIndexOf('STATUS CONF. DOC.');
                     if (firstIdx !== lastIdx) {
                         foundIndex = firstIdx;
+                    }
+                }
+                if (key === 'STATUS CONF. DOC.' && name.toUpperCase() === 'STATUS CONF. DOC.') {
+                    const firstIdx = headerUpper.indexOf('STATUS CONF. DOC.');
+                    const lastIdx = headerUpper.lastIndexOf('STATUS CONF. DOC.');
+                    if (firstIdx !== lastIdx) {
+                        foundIndex = lastIdx;
                     }
                 }
                 break;
@@ -299,6 +306,7 @@ async function syncSheets() {
                     // New Fields
                     seller: getData('VENDEDOR'),
                     folder: getData('PASTA'),
+                    payment_date: getData('DATA PAGAMENTO'),
                     install_date: getData('DATA INSTALAÇÃO'),
                     has_inverter: getData('TEM INVERSOR'),
                     deadline: getData('PRAZO'),
@@ -308,6 +316,7 @@ async function syncSheets() {
                     vistoria_2nd_date: getData('DATA 2° SOLITAÇÃO VISTORIA'),
                     days_since_doc_conf: daysSinceDocConf,
                     doc_conf_date: docConfDateStr,
+                    doc_conf_status: getData('STATUS CONF. DOC.'),
                     protocol_date: protocolDateStr,
                     days_since_protocol: daysSinceProtocol,
                     install_status: getData('STATUS INSTALAÇÃO'),

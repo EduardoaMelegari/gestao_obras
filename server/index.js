@@ -284,6 +284,19 @@ function addDays(date, days) {
     return d;
 }
 
+function daysBetweenDateStrings(startValue, endValue = new Date()) {
+    const start = parseDateString(startValue);
+    if (!start) return null;
+
+    const end = endValue instanceof Date ? endValue : parseDateString(endValue);
+    if (!end) return null;
+
+    const startDate = startOfDay(start);
+    const endDate = startOfDay(end);
+    const diffMs = endDate.getTime() - startDate.getTime();
+    return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+}
+
 // Tracks the timestamp of the last successful Google Sheets → DB sync
 function toPlainProject(project) {
     if (project && typeof project.get === 'function') {
@@ -419,6 +432,184 @@ function compareProjectsStable(a, b) {
 
 function sortProjectsStable(list = []) {
     return [...list].sort(compareProjectsStable);
+}
+
+function normalizeComparableText(value) {
+    return String(value ?? '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toUpperCase();
+}
+
+function parseMultiValueParam(value) {
+    if (!value) return [];
+    const values = Array.isArray(value) ? value : [value];
+    return values
+        .flatMap(v => String(v).split(','))
+        .map(v => v.trim())
+        .filter(Boolean);
+}
+
+function isFinishedProjectStatus(statusValue) {
+    const status = normalizeComparableText(statusValue);
+    return status.includes('FINALIZADO') || status.includes('CONCLUIDO') || status === 'COMPLETED';
+}
+
+function scoreConferenceRecord(project) {
+    let score = 0;
+    if (parseDateString(project?.payment_date)) score += 3;
+    if (parseDateString(project?.doc_conf_date)) score += 3;
+    if (normalizeSortText(project?.doc_conf_status)) score += 1;
+    if (normalizeSortText(project?.external_id)) score += 1;
+    if (normalizeSortText(project?.folder)) score += 1;
+    return score;
+}
+
+function shouldReplaceConferenceRecord(current, next) {
+    const currentScore = scoreConferenceRecord(current);
+    const nextScore = scoreConferenceRecord(next);
+    if (nextScore !== currentScore) return nextScore > currentScore;
+
+    const currentUpdated = current?.updatedAt ? new Date(current.updatedAt).getTime() : 0;
+    const nextUpdated = next?.updatedAt ? new Date(next.updatedAt).getTime() : 0;
+    return nextUpdated > currentUpdated;
+}
+
+function buildConferenceDedupKey(project) {
+    const city = normalizeSortText(project?.city) || 'unknown';
+    const folder = normalizeSortText(project?.folder);
+    if (folder) return `FOLDER:${folder}|CITY:${city}`;
+
+    const externalId = normalizeSortText(project?.external_id);
+    if (externalId) return `EXTERNAL:${externalId}|CITY:${city}`;
+
+    const client = normalizeSortText(project?.client) || 'unknown';
+    const paymentDate = normalizeSortText(project?.payment_date);
+    const confDate = normalizeSortText(project?.doc_conf_date);
+    return `CLIENT:${client}|CITY:${city}|PAY:${paymentDate}|CONF:${confDate}`;
+}
+
+function dedupeConferenceProjects(list = []) {
+    const map = new Map();
+
+    for (const item of list) {
+        const key = buildConferenceDedupKey(item);
+        if (!map.has(key)) {
+            map.set(key, item);
+            continue;
+        }
+
+        const current = map.get(key);
+        if (shouldReplaceConferenceRecord(current, item)) {
+            map.set(key, item);
+        }
+    }
+
+    return Array.from(map.values());
+}
+
+function normalizeConferenceProject(project) {
+    const paymentDate = String(project?.payment_date || '').trim();
+    const conferenceDate = String(project?.doc_conf_date || '').trim();
+    const confStatus = String(project?.doc_conf_status || '').trim();
+    const normalizedConfStatus = normalizeComparableText(confStatus);
+    const confStatusGroup = normalizedConfStatus.includes('FINALIZ')
+        ? 'Finalizado'
+        : 'Não Finalizado';
+    const isAmpliacao = isAmpliacaoProject(project);
+    const daysInConference = paymentDate
+        ? daysBetweenDateStrings(paymentDate, conferenceDate || new Date())
+        : null;
+
+    let conferenceStatus = 'SEM_PAGAMENTO';
+    if (paymentDate && !conferenceDate) conferenceStatus = 'PENDENTE';
+    if (paymentDate && conferenceDate) conferenceStatus = 'CONFERIDA';
+
+    return {
+        ...project,
+        payment_date: paymentDate,
+        doc_conf_date: conferenceDate,
+        doc_conf_status: confStatus,
+        doc_conf_status_group: confStatusGroup,
+        days_in_conference: daysInConference,
+        conference_status: conferenceStatus,
+        is_ampliacao: isAmpliacao,
+    };
+}
+
+function buildConferenceStatusOptions(list = []) {
+    return ['Finalizado', 'Não Finalizado'];
+}
+
+function filterByConferenceDocStatus(list = [], selectedStatuses = []) {
+    const selected = selectedStatuses.map(normalizeComparableText).filter(Boolean);
+    if (selected.length === 0) return list;
+
+    return list.filter((item) => {
+        const group = String(item?.doc_conf_status_group || 'Não Finalizado').trim();
+        const comparable = normalizeComparableText(group);
+        return selected.includes(comparable);
+    });
+}
+
+function filterByConferenceScope(list = [], scope = 'all') {
+    if (scope === 'projetos') return list.filter(item => !item.is_ampliacao);
+    if (scope === 'ampliacao') return list.filter(item => item.is_ampliacao);
+    return list;
+}
+
+function filterByPaymentDateRange(list = [], dateFrom, dateTo) {
+    if (!dateFrom && !dateTo) return list;
+
+    return list.filter((item) => {
+        const paymentDate = parseDateString(item?.payment_date);
+        if (!paymentDate) return false;
+
+        const paymentStart = startOfDay(paymentDate);
+        if (dateFrom && paymentStart < dateFrom) return false;
+        if (dateTo && paymentStart >= dateTo) return false;
+        return true;
+    });
+}
+
+function hasConferencePaymentDate(item) {
+    return Boolean(parseDateString(item?.payment_date));
+}
+
+function filterConferenceBySearch(list = [], searchTerm = '') {
+    const normalizedTerm = normalizeComparableText(searchTerm);
+    if (!normalizedTerm) return list;
+
+    return list.filter((item) => {
+        const fields = [
+            item?.client,
+            item?.city,
+            item?.seller,
+            item?.external_id,
+            item?.folder,
+            item?.doc_conf_status,
+            item?.doc_conf_status_group,
+        ];
+
+        return fields.some((value) => normalizeComparableText(value).includes(normalizedTerm));
+    });
+}
+
+function sortConferenceList(list = []) {
+    return [...list].sort((a, b) => {
+        const dayA = Number.isFinite(Number(a?.days_in_conference)) ? Number(a.days_in_conference) : -1;
+        const dayB = Number.isFinite(Number(b?.days_in_conference)) ? Number(b.days_in_conference) : -1;
+        if (dayB !== dayA) return dayB - dayA;
+
+        const clientA = normalizeSortText(a?.client);
+        const clientB = normalizeSortText(b?.client);
+        if (clientA !== clientB) return clientA.localeCompare(clientB, 'pt-BR', { sensitivity: 'base' });
+
+        const cityA = normalizeSortText(a?.city);
+        const cityB = normalizeSortText(b?.city);
+        return cityA.localeCompare(cityB, 'pt-BR', { sensitivity: 'base' });
+    });
 }
 
 async function runSheetsSync(trigger = 'auto') {
@@ -698,6 +889,160 @@ app.get('/api/projects', async (req, res) => {
 
     } catch (error) {
         console.error('Error fetching projects dashboard:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.get('/api/doc-conference', async (req, res) => {
+    try {
+        const whereClause = {};
+        whereClause.status = 'PROJECT';
+
+        const [projects, allCities, allSellers, allCategories] = await Promise.all([
+            Project.findAll({
+                where: whereClause,
+                order: [['updatedAt', 'DESC']]
+            }),
+            Project.findAll({
+                where: { status: 'PROJECT' },
+                attributes: [[sequelize.fn('DISTINCT', sequelize.col('city')), 'city']]
+            }),
+            Project.findAll({
+                where: { status: 'PROJECT' },
+                attributes: [[sequelize.fn('DISTINCT', sequelize.col('seller')), 'seller']]
+            }),
+            Project.findAll({
+                where: { status: 'PROJECT' },
+                attributes: [[sequelize.fn('DISTINCT', sequelize.col('category')), 'category']]
+            }),
+        ]);
+
+        const normalizedAll = dedupeConferenceProjects(projects.map(toPlainProject)).map(normalizeConferenceProject);
+        const normalizedWithPayment = normalizedAll.filter(hasConferencePaymentDate);
+        const confStatuses = buildConferenceStatusOptions(normalizedWithPayment);
+        const normalized = normalizedWithPayment;
+
+        const pending = sortConferenceList(normalized.filter(p => p.conference_status === 'PENDENTE'));
+        const completed = sortConferenceList(normalized.filter(p => p.conference_status === 'CONFERIDA'));
+        const withoutPayment = [];
+
+        res.json({
+            scope: 'all',
+            search: null,
+            dateFrom: null,
+            dateTo: null,
+            lastSync: lastSuccessfulSync,
+            cities: allCities.map(c => c.city).filter(Boolean).sort(),
+            sellers: allSellers.map(s => s.seller).filter(Boolean).sort(),
+            categories: allCategories.map(c => c.category).filter(Boolean).sort(),
+            confStatuses,
+            kpi: {
+                pending: { count: pending.length, title: 'A CONFERIR', color: '#ea580c' },
+                completed: { count: completed.length, title: 'CONFERIDAS', color: '#16a34a' },
+                withoutPayment: { count: 0, title: 'SEM DATA PAGAMENTO', color: '#475569' },
+            },
+            sections: {
+                pending,
+                completed,
+                withoutPayment,
+            },
+            records: sortConferenceList(normalized)
+        });
+    } catch (error) {
+        console.error('Error fetching document conference dashboard:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.get('/api/doc-conference/seller-avg', async (req, res) => {
+    try {
+        const whereClause = buildFilterClause(req.query);
+        whereClause.status = 'PROJECT';
+
+        const selectedConfStatuses = parseMultiValueParam(req.query.conf_status);
+        const scope = String(req.query.scope || 'all').toLowerCase();
+        const searchTerm = String(req.query.search || '').trim();
+        const dateFromRaw = req.query.date_from ? parseDateString(req.query.date_from) : null;
+        const dateToRaw = req.query.date_to ? parseDateString(req.query.date_to) : null;
+        const dateFrom = dateFromRaw ? startOfDay(dateFromRaw) : null;
+        const dateTo = dateToRaw ? addDays(startOfDay(dateToRaw), 1) : null; // inclusive date_to
+
+        const projects = await Project.findAll({
+            where: whereClause,
+            order: [['updatedAt', 'DESC']]
+        });
+
+        const normalizedAll = dedupeConferenceProjects(projects.map(toPlainProject)).map(normalizeConferenceProject);
+        const scoped = filterByConferenceScope(normalizedAll, scope).filter(hasConferencePaymentDate);
+        const ranged = filterByPaymentDateRange(scoped, dateFrom, dateTo);
+        const confStatuses = buildConferenceStatusOptions(ranged);
+        const searched = filterConferenceBySearch(ranged, searchTerm);
+        const filtered = filterByConferenceDocStatus(searched, selectedConfStatuses)
+            .filter(item => Number.isFinite(Number(item.days_in_conference)));
+
+        const sellerMap = new Map();
+        filtered.forEach((item) => {
+            const seller = String(item.seller || '').trim() || 'SEM VENDEDOR';
+            const days = Number(item.days_in_conference);
+            const isFinished = Boolean(parseDateString(item.doc_conf_date));
+
+            if (!sellerMap.has(seller)) {
+                sellerMap.set(seller, {
+                    seller,
+                    total: 0,
+                    sumDays: 0,
+                    maxDays: Number.NEGATIVE_INFINITY,
+                    minDays: Number.POSITIVE_INFINITY,
+                    finished: 0,
+                    inProgress: 0,
+                });
+            }
+
+            const row = sellerMap.get(seller);
+            row.total += 1;
+            row.sumDays += days;
+            row.maxDays = Math.max(row.maxDays, days);
+            row.minDays = Math.min(row.minDays, days);
+            if (isFinished) row.finished += 1;
+            else row.inProgress += 1;
+        });
+
+        const sellers = Array.from(sellerMap.values())
+            .map((row) => ({
+                seller: row.seller,
+                avg_days: Number((row.sumDays / row.total).toFixed(1)),
+                total_cases: row.total,
+                finished_cases: row.finished,
+                in_progress_cases: row.inProgress,
+                max_days: row.maxDays,
+                min_days: row.minDays,
+            }))
+            .sort((a, b) => {
+                if (b.avg_days !== a.avg_days) return b.avg_days - a.avg_days;
+                return b.total_cases - a.total_cases;
+            });
+
+        const maxAvgDays = sellers.length > 0 ? Math.max(...sellers.map(s => s.avg_days)) : 0;
+        const totals = {
+            sellers: sellers.length,
+            cases: sellers.reduce((acc, s) => acc + s.total_cases, 0),
+            avg_days: sellers.length > 0
+                ? Number((sellers.reduce((acc, s) => acc + (s.avg_days * s.total_cases), 0) / sellers.reduce((acc, s) => acc + s.total_cases, 0)).toFixed(1))
+                : 0
+        };
+
+        res.json({
+            scope,
+            search: searchTerm || null,
+            dateFrom: req.query.date_from || null,
+            dateTo: req.query.date_to || null,
+            confStatuses,
+            maxAvgDays,
+            totals,
+            sellers,
+        });
+    } catch (error) {
+        console.error('Error fetching doc conference seller averages:', error);
         res.status(500).json({ error: error.message });
     }
 });

@@ -47,6 +47,46 @@ export async function fetchParadosData(city, seller) {
     }
 }
 
+export async function fetchDocConferenceData(city, category, seller, confStatus, dateFrom, dateTo, scope, search) {
+    try {
+        const queryParams = new URLSearchParams();
+        if (city && city.length > 0) queryParams.append('city', city);
+        if (category && category.length > 0) queryParams.append('category', category);
+        if (seller && seller.length > 0) queryParams.append('seller', seller);
+        if (confStatus && confStatus.length > 0) queryParams.append('conf_status', confStatus);
+        if (dateFrom) queryParams.append('date_from', dateFrom);
+        if (dateTo) queryParams.append('date_to', dateTo);
+        if (scope) queryParams.append('scope', scope);
+        if (search) queryParams.append('search', search);
+
+        const url = `/api/doc-conference?${queryParams.toString()}`;
+        return await fetchJson(url, { cache: 'no-store' });
+    } catch (error) {
+        console.error("Failed to fetch document conference data:", error);
+        throw error;
+    }
+}
+
+export async function fetchDocConferenceSellerAvg(city, category, seller, confStatus, dateFrom, dateTo, scope, search) {
+    try {
+        const queryParams = new URLSearchParams();
+        if (city && city.length > 0) queryParams.append('city', city);
+        if (category && category.length > 0) queryParams.append('category', category);
+        if (seller && seller.length > 0) queryParams.append('seller', seller);
+        if (confStatus && confStatus.length > 0) queryParams.append('conf_status', confStatus);
+        if (dateFrom) queryParams.append('date_from', dateFrom);
+        if (dateTo) queryParams.append('date_to', dateTo);
+        if (scope) queryParams.append('scope', scope);
+        if (search) queryParams.append('search', search);
+
+        const url = `/api/doc-conference/seller-avg?${queryParams.toString()}`;
+        return await fetchJson(url, { cache: 'no-store' });
+    } catch (error) {
+        console.error("Failed to fetch document conference seller averages:", error);
+        throw error;
+    }
+}
+
 export async function fetchPlatesData() {
     try {
         return await fetchJson('/api/plates', { cache: 'no-store' });

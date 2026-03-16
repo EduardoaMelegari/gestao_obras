@@ -72,6 +72,10 @@ const Project = sequelize.define('Project', {
         defaultValue: 'SORRISO'
     },
     // New Fields from Projects Tab
+    payment_date: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
     install_date: {
         type: DataTypes.STRING,
         allowNull: true
@@ -106,6 +110,10 @@ const Project = sequelize.define('Project', {
         allowNull: true
     },
     doc_conf_date: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    doc_conf_status: {
         type: DataTypes.STRING,
         allowNull: true
     },

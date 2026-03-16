@@ -5,6 +5,7 @@ import PlateNumbers from './components/PlateNumbers';
 import Sidebar from './components/Sidebar';
 import Vistoria from './components/Vistoria';
 import AlertsCenter from './components/AlertsCenter';
+import DocConference from './components/DocConference';
 import AdminReport, { usePing } from './components/AdminReport';
 import { fetchJson } from './services/http';
 import './theme-v2.css';
@@ -70,6 +71,7 @@ function AppContent() {
           {activePage === 'projects' && <Projects />}
           {activePage === 'plate_numbers' && <PlateNumbers />}
           {activePage === 'vistoria' && <Vistoria />}
+          {activePage === 'doc_conference' && <DocConference />}
           {activePage === 'alertas' && <AlertsCenter />}
         </div>
       </div>

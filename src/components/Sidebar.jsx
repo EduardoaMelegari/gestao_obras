@@ -50,6 +50,15 @@ const Sidebar = ({ activePage, onNavigate, isExpanded, onToggle }) => {
                 </div>
 
                 <div
+                    className={`nav-item ${activePage === 'doc_conference' ? 'active' : ''}`}
+                    onClick={() => onNavigate('doc_conference')}
+                    title="Conferência de Documentação"
+                >
+                    <span className="icon">🗂️</span>
+                    {isExpanded && <span className="label">Conf. Documentação</span>}
+                </div>
+
+                <div
                     className={`nav-item ${activePage === 'alertas' ? 'active' : ''}`}
                     onClick={() => onNavigate('alertas')}
                     title="Alertas e Indicadores"

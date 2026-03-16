@@ -20,6 +20,7 @@ const COLUMN_CONFIG = {
 
     // Project Tab Fields
     'DATA FINALIZAÇÃO CONF.': { names: ['DATA FINALIZAÇÃO CONF.', 'DATA FINALIZACAO CONF.', 'DATA FINALIZAÇÃO CONF', 'STATUS CONF. DOC.'], index: -1 },
+    'STATUS CONF. DOC.': { names: ['STATUS CONF. DOC.', 'STATUS CONF DOC', 'STATUS CONF DOC.'], index: -1 },
     'DATA INSTALAÇÃO': { names: ['DATA INSTALAÇÃO', 'DATA INSTALACAO', 'DATA INICIAL OBRA'], index: -1 },
     'TEM INVERSOR': { names: ['TEM INVERSOR'], index: -1 },
     'PRAZO': { names: ['PRAZO'], index: -1 },
